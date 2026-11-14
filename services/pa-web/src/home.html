@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PlotFarms — Your Personal Assistant for Everything</title>
+<style>
+  :root { --bg:#0d0b08; --panel:#171310; --panel2:#1f1913; --gold:#c9a227; --gold2:#e8c95a; --text:#f3ead8; --muted:#b8ab90; --line:#33291a; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:Georgia,'Times New Roman',serif; line-height:1.55; }
+  a { color:var(--gold2); }
+  .wrap { max-width:1120px; margin:0 auto; padding:0 20px; }
+  header { position:sticky; top:0; background:rgba(13,11,8,.95); border-bottom:1px solid var(--line); z-index:10; }
+  .nav { display:flex; align-items:center; gap:18px; padding:14px 0; flex-wrap:wrap; }
+  .brand { font-size:24px; font-weight:bold; color:var(--gold2); text-decoration:none; letter-spacing:.5px; }
+  .brand small { display:block; font-size:11px; color:var(--muted); letter-spacing:2px; font-family:Arial,sans-serif; }
+  .nav nav { margin-left:auto; display:flex; gap:16px; align-items:center; flex-wrap:wrap; font-family:Arial,sans-serif; font-size:14px; }
+  .nav nav a { color:var(--text); text-decoration:none; }
+  .btn { display:inline-block; background:var(--gold); color:#171106; padding:10px 18px; border-radius:8px; text-decoration:none; font-family:Arial,sans-serif; font-weight:bold; font-size:14px; border:1px solid var(--gold); }
+  .btn.ghost { background:transparent; color:var(--gold2); }
+  .banner { text-align:center; color:var(--muted); font-family:Arial,sans-serif; font-size:13px; padding:10px 0 0; }
+  .hero { text-align:center; padding:56px 0 40px; }
+  .hero h1 { font-size:44px; line-height:1.15; color:var(--gold2); max-width:760px; margin:0 auto 16px; }
+  .hero h1 em { color:var(--text); }
+  .hero p { color:var(--muted); font-size:18px; max-width:680px; margin:0 auto 26px; }
+  .cta-row { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-bottom:34px; }
+  .stats { display:flex; gap:14px; justify-content:center; flex-wrap:wrap; }
+  .stat { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px 22px; min-width:150px; }
+  .stat b { display:block; font-size:28px; color:var(--gold2); }
+  .stat span { font-family:Arial,sans-serif; font-size:12px; color:var(--muted); letter-spacing:1px; text-transform:uppercase; }
+  .trust { text-align:center; color:var(--muted); font-family:Arial,sans-serif; font-size:13px; padding:18px 0 6px; }
+  section { padding:44px 0; }
+  .kicker { text-align:center; color:var(--gold); font-family:Arial,sans-serif; letter-spacing:2px; font-size:12px; text-transform:uppercase; }
+  h2 { text-align:center; font-size:32px; color:var(--text); margin:8px 0 30px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:16px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:22px; }
+  .card .icon { font-size:30px; }
+  .card h3 { color:var(--gold2); font-size:19px; margin:10px 0 6px; }
+  .card p { color:var(--muted); font-size:14.5px; }
+  .card .tag { display:inline-block; margin-top:12px; font-family:Arial,sans-serif; font-size:12px; color:var(--gold); border:1px solid var(--line); padding:4px 10px; border-radius:20px; }
+  .steps { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:16px; }
+  .step { background:var(--panel2); border:1px solid var(--line); border-radius:14px; padding:24px; text-align:center; }
+  .step .num { width:44px; height:44px; border-radius:50%; background:var(--gold); color:#171106; font-weight:bold; font-size:20px; display:flex; align-items:center; justify-content:center; margin:0 auto 12px; font-family:Arial,sans-serif; }
+  .step h3 { color:var(--gold2); margin-bottom:6px; }
+  .step p { color:var(--muted); font-size:14.5px; }
+  .chat { max-width:560px; margin:0 auto; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:20px; font-family:Arial,sans-serif; font-size:14.5px; }
+  .msg { padding:10px 14px; border-radius:12px; margin-bottom:10px; max-width:85%; }
+  .msg.pa { background:var(--panel2); border:1px solid var(--line); }
+  .msg.me { background:#2a3d2a; margin-left:auto; }
+  .ai-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:16px; }
+  .final { text-align:center; background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:36px 24px; }
+  .final h2 { margin-bottom:10px; }
+  .final p { color:var(--muted); margin-bottom:22px; }
+  .phone { font-size:22px; color:var(--gold2); letter-spacing:1px; }
+  footer { border-top:1px solid var(--line); padding:26px 0 40px; color:var(--muted); font-family:Arial,sans-serif; font-size:13.5px; }
+  footer .wrap { display:flex; gap:18px; flex-wrap:wrap; align-items:center; }
+  footer a { color:var(--muted); }
+  @media (max-width:640px){ .hero h1{font-size:32px;} h2{font-size:25px;} }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap nav">
+    <a class="brand" href="/">PlotFarms<small>PERSONAL ASSISTANT</small></a>
+    <nav>
+      <a href="#services">Services</a>
+      <a href="#how">How It Works</a>
+      <a href="#ai">AI Assistant</a>
+      <a href="https://t.me/ypa25bot" target="_blank" rel="noopener">Telegram</a>
+      <a class="btn ghost" href="/login">Employee Login</a>
+      <a class="btn" href="https://t.me/ypa25bot" target="_blank" rel="noopener">Chat with PA</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+  <p class="banner">📍 Offices opening soon across Andhra Pradesh &amp; Telangana</p>
+
+  <div class="hero">
+    <h1>One call. <em>Every</em> need handled in 30 minutes.</h1>
+    <p>Home repairs, healthcare, travel, government docs, food, transportation — all through one personal assistant, powered by AI.</p>
+    <div class="cta-row">
+      <a class="btn" href="https://t.me/ypa25bot" target="_blank" rel="noopener">✈️ Chat with PA on Telegram</a>
+      <a class="btn ghost" href="tel:1800PLOTFARMS">📞 1-800-PLOTFARMS</a>
+    </div>
+    <div class="stats">
+      <div class="stat"><b>30 min</b><span>Response</span></div>
+      <div class="stat"><b>50K+</b><span>Tasks Done</span></div>
+      <div class="stat"><b>98%</b><span>Satisfaction</span></div>
+    </div>
+    <p class="trust">24/7 Available &nbsp;·&nbsp; 30-Min Guarantee &nbsp;·&nbsp; Verified Professionals &nbsp;·&nbsp; AI + Human Support</p>
+  </div>
+
+  <section id="services">
+    <p class="kicker">What We Do</p>
+    <h2>Every life task, one platform.</h2>
+    <div class="grid">
+      <div class="card"><div class="icon">🔧</div><h3>Home Repair</h3><p>Plumbing, electrical, HVAC, painting, appliance repair — vetted professionals at your door.</p><span class="tag">Same-day service</span></div>
+      <div class="card"><div class="icon">🍽️</div><h3>Food &amp; Meals</h3><p>Grocery delivery, meal prep, catering, personal chef bookings, and dietary planning.</p><span class="tag">Order in minutes</span></div>
+      <div class="card"><div class="icon">🏥</div><h3>Healthcare</h3><p>Doctor appointments, pharmacy runs, insurance help, home nursing, and wellness check-ins.</p><span class="tag">Priority booking</span></div>
+      <div class="card"><div class="icon">🚗</div><h3>Transportation</h3><p>Ride booking, airport transfers, vehicle servicing, moving trucks, and roadside assistance.</p><span class="tag">On-demand rides</span></div>
+      <div class="card"><div class="icon">👶</div><h3>Care Taking</h3><p>Childcare, elder care, pet sitting, special-needs support — all background-checked caregivers.</p><span class="tag">Trusted caregivers</span></div>
+      <div class="card"><div class="icon">🎉</div><h3>Event Planning</h3><p>Venues, decorations, catering, entertainment, photography — full event management.</p><span class="tag">End-to-end planning</span></div>
+      <div class="card"><div class="icon">📄</div><h3>Government Docs</h3><p>Passport, licenses, permits, tax filings, registrations — we handle the paperwork.</p><span class="tag">No more lines</span></div>
+      <div class="card"><div class="icon">📦</div><h3>Shipping &amp; Logistics</h3><p>Package pickup, courier services, international shipping, and cargo tracking.</p><span class="tag">Door-to-door</span></div>
+      <div class="card"><div class="icon">✈️</div><h3>Travel</h3><p>Flights, hotels, itineraries, visa assistance, travel insurance — your complete travel desk.</p><span class="tag">Best-price guarantee</span></div>
+      <div class="card"><div class="icon">💰</div><h3>Loans &amp; Supplies</h3><p>Personal loans, business funding, equipment rental, and bulk supply sourcing.</p><span class="tag">Fast approvals</span></div>
+      <div class="card"><div class="icon">🛡️</div><h3>Insurance &amp; Legal</h3><p>Policy comparison, claims support, notary services, and basic legal consultation.</p><span class="tag">Expert matching</span></div>
+    </div>
+  </section>
+
+  <section id="telegram">
+    <p class="kicker">On Telegram</p>
+    <h2>Message the PA. It handles the rest.</h2>
+    <div class="chat">
+      <div class="msg me">2 kg mirchi</div>
+      <div class="msg pa">Namaste! I found green chillies at 2 stores near your address. Best: ₹48/kg, available now. Shall I order 2 kg?</div>
+      <div class="msg me">Yes</div>
+      <div class="msg pa">Done ✅ The store will send the invoice and payment options here. Delivery today.</div>
+    </div>
+    <p style="text-align:center; margin-top:20px;">
+      <a class="btn" href="https://t.me/ypa25bot" target="_blank" rel="noopener">Open @ypa25bot on Telegram</a>
+    </p>
+  </section>
+
+  <section id="how">
+    <p class="kicker">Simple Process</p>
+    <h2>Three steps. That's it.</h2>
+    <div class="steps">
+      <div class="step"><div class="num">1</div><h3>Tell Us What You Need</h3><p>Call, chat, or message us. Describe your need in plain language — our AI understands context.</p></div>
+      <div class="step"><div class="num">2</div><h3>We Match &amp; Dispatch</h3><p>Within minutes, we connect you with the right professional or start processing your request.</p></div>
+      <div class="step"><div class="num">3</div><h3>Done in 30 Minutes</h3><p>Your assistant stays with you until it's resolved. Pay securely, rate the service, done.</p></div>
+    </div>
+  </section>
+
+  <section id="ai">
+    <p class="kicker">Powered by AI</p>
+    <h2>Your smartest assistant, always on.</h2>
+    <p style="text-align:center; color:var(--muted); max-width:640px; margin:0 auto 26px;">Our AI understands natural language, remembers your preferences, and coordinates with real professionals to get things done — not just answers.</p>
+    <div class="ai-grid">
+      <div class="card"><div class="icon">⚡</div><h3>Instant triage</h3><p>AI categorizes your request and routes to the right team in seconds.</p></div>
+      <div class="card"><div class="icon">🧠</div><h3>Context-aware</h3><p>Remembers your address, preferences, and past requests.</p></div>
+      <div class="card"><div class="icon">📞</div><h3>Seamless handoff</h3><p>Escalates to a human agent when needed, with full context.</p></div>
+      <div class="card"><div class="icon">🔔</div><h3>Proactive updates</h3><p>Real-time notifications on progress via SMS, email, or app.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="final">
+      <h2>Ready to simplify your life?</h2>
+      <p>One call or one message — and we handle everything. No apps to download, no accounts to create.</p>
+      <div class="cta-row">
+        <a class="btn" href="https://t.me/ypa25bot" target="_blank" rel="noopener">✈️ Chat on Telegram</a>
+        <a class="btn ghost" href="/login">Employee Login</a>
+      </div>
+      <p class="phone">1-800-PLOTFARMS</p>
+    </div>
+  </section>
+</div>
+
+<footer>
+  <div class="wrap">
+    <span>© PlotFarms — Your Personal Assistant for Everything</span>
+    <span style="margin-left:auto; display:flex; gap:16px;">
+      <a href="https://t.me/ypa25bot" target="_blank" rel="noopener">Telegram @ypa25bot</a>
+      <a href="/login">Employee Login</a>
+    </span>
+  </div>
+</footer>
+</body>
+</html>

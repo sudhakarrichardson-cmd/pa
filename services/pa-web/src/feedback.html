@@ -1,0 +1,749 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Business Feedback — PlotFarms PA</title>
+<style>
+  :root { --bg:#0d0b08; --panel:#171310; --panel2:#1f1913; --gold:#c9a227; --gold2:#e8c95a; --text:#f3ead8; --muted:#b8ab90; --line:#33291a; --err:#e08a8a; --ok:#9fd49a; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:Arial,sans-serif; line-height:1.5; }
+  .wrap { max-width:860px; margin:0 auto; padding:0 16px 60px; }
+  header { border-bottom:1px solid var(--line); background:rgba(13,11,8,.97); position:sticky; top:0; z-index:10; }
+  .nav { max-width:860px; margin:0 auto; padding:12px 16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .brand { font-family:Georgia,serif; font-size:20px; color:var(--gold2); }
+  .brand small { display:block; font-size:10px; color:var(--muted); letter-spacing:2px; }
+  .nav .sp { margin-left:auto; display:flex; gap:10px; align-items:center; font-size:13.5px; color:var(--muted); flex-wrap:wrap; }
+  button, .btn { background:var(--gold); color:#171106; border:1px solid var(--gold); padding:11px 18px; border-radius:9px; font-size:15px; font-weight:bold; cursor:pointer; text-decoration:none; display:inline-block; }
+  button.ghost, .btn.ghost { background:transparent; color:var(--gold2); }
+  button:disabled { opacity:.5; }
+  h1 { font-family:Georgia,serif; font-size:24px; color:var(--gold2); margin:22px 0 4px; }
+  h2 { font-family:Georgia,serif; font-size:19px; color:var(--gold2); margin:20px 0 10px; }
+  .sub { color:var(--muted); font-size:14px; margin-bottom:14px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:18px; margin-bottom:16px; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th, td { text-align:left; padding:9px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--gold); font-size:12px; text-transform:uppercase; letter-spacing:1px; }
+  .pill { display:inline-block; font-size:11.5px; padding:2px 9px; border-radius:12px; border:1px solid var(--line); color:var(--muted); }
+  .pill.submitted { color:var(--gold2); border-color:var(--gold); }
+  .pill.completed { color:var(--ok); border-color:#3d5a38; }
+  label.flabel { display:block; font-size:14px; color:var(--text); margin:16px 0 6px; font-weight:bold; }
+  label.flabel .qno { color:var(--gold); }
+  input[type=text], input[type=tel], input[type=number], input[type=date], select, textarea {
+    width:100%; padding:12px; border-radius:9px; border:1px solid var(--line); background:#0d0b08; color:var(--text); font-size:16px; font-family:Arial,sans-serif; }
+  textarea { min-height:74px; resize:vertical; }
+  .checks { display:flex; flex-wrap:wrap; gap:8px; }
+  .checks label { display:inline-flex; gap:7px; align-items:center; background:var(--panel2); border:1px solid var(--line); border-radius:20px; padding:8px 13px; font-size:14px; cursor:pointer; }
+  .checks input { width:17px; height:17px; accent-color:var(--gold); }
+  .types { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; }
+  .types label { background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:16px 10px; text-align:center; cursor:pointer; font-size:15px; }
+  .types input { display:none; }
+  .types label.sel { border-color:var(--gold); color:var(--gold2); }
+  .stepper { display:flex; gap:6px; flex-wrap:wrap; margin:16px 0; }
+  .stepper span { font-size:12px; padding:5px 10px; border-radius:14px; border:1px solid var(--line); color:var(--muted); }
+  .stepper span.on { background:var(--gold); color:#171106; border-color:var(--gold); font-weight:bold; }
+  .wizard-nav { display:flex; gap:10px; margin-top:22px; }
+  .wizard-nav .sp { margin-left:auto; }
+  .savestate { font-size:13px; color:var(--muted); align-self:center; }
+  .error { display:none; background:#3a1717; border:1px solid #6e2b2b; color:var(--err); border-radius:9px; padding:11px 13px; font-size:14px; margin:14px 0; }
+  .okmsg { display:none; background:#1d2f1a; border:1px solid #3d5a38; color:var(--ok); border-radius:9px; padding:11px 13px; font-size:14px; margin:14px 0; }
+  .counts { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px; }
+  .count { background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:14px; text-align:center; }
+  .count b { display:block; font-size:24px; color:var(--gold2); }
+  .count span { font-size:12px; color:var(--muted); }
+  .review dt { color:var(--gold); font-size:12.5px; text-transform:uppercase; letter-spacing:.5px; margin-top:10px; }
+  .review dd { font-size:14.5px; white-space:pre-wrap; }
+  .upload-row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; padding:10px 0; border-bottom:1px solid var(--line); }
+  .upload-row .k { flex:1 1 220px; font-size:14.5px; }
+  input[type=file] { font-size:13.5px; color:var(--muted); max-width:230px; }
+  .hidden { display:none !important; }
+  a { color:var(--gold2); }
+</style>
+</head>
+<body>
+<header>
+  <div class="nav">
+    <div class="brand">PlotFarms<small>BUSINESS FEEDBACK</small></div>
+    <div class="sp">
+      <span id="whoami"></span>
+      <button class="ghost" id="logoutBtn" type="button">Sign out</button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <!-- ================= LIST VIEW ================= -->
+  <div id="listView">
+    <h1>Business Feedback</h1>
+    <p class="sub">Field survey visits. Drafts save automatically — a visit is only final after Submit, and Part C is filled after leaving the shop.</p>
+    <div class="error" id="listError"></div>
+    <p style="margin-bottom:16px;"><button id="newVisitBtn" type="button">+ New visit</button></p>
+
+    <div class="card">
+      <h2 style="margin-top:0;">Visits</h2>
+      <div style="overflow-x:auto;">
+      <table>
+        <thead><tr><th>Date</th><th>Business</th><th>Type</th><th>Town</th><th>Status</th><th></th></tr></thead>
+        <tbody id="visitsBody"><tr><td colspan="6" style="color:var(--muted);">Loading…</td></tr></tbody>
+      </table>
+      </div>
+    </div>
+
+    <!-- Manager dashboard (shown only for manager/owner) -->
+    <div id="dashCard" class="card hidden">
+      <h2 style="margin-top:0;">Office dashboard</h2>
+      <div class="counts" id="dashCounts"></div>
+      <h2>Visits by type</h2>
+      <div class="counts" id="dashTypes"></div>
+      <p style="margin-top:18px;"><a class="btn ghost" href="/api/export.csv">⬇ Export CSV (Results Tracker columns)</a></p>
+    </div>
+  </div>
+
+  <!-- ================= WIZARD VIEW ================= -->
+  <div id="wizardView" class="hidden">
+    <h1 id="wizTitle">New visit</h1>
+    <p class="sub" id="wizSub">Answers save as a draft automatically. Never quote a fee or promise a date — wishes are requirements.</p>
+    <div class="stepper" id="stepper"></div>
+    <div class="error" id="wizError"></div>
+    <div class="okmsg" id="wizOk"></div>
+    <div class="card" id="stepBody"></div>
+    <div class="wizard-nav">
+      <button class="ghost" id="backBtn" type="button">← Back</button>
+      <span class="savestate" id="saveState"></span>
+      <span class="sp"></span>
+      <button class="ghost" id="listBtn" type="button">Save &amp; exit</button>
+      <button id="nextBtn" type="button">Next →</button>
+      <button id="submitBtn" type="button" class="hidden">Submit visit</button>
+    </div>
+
+    <!-- Part C panel (only for a submitted visit) -->
+    <div id="partCPanel" class="hidden">
+      <h2>Part C — Engineer wrap-up (internal, after the visit)</h2>
+      <div class="card" id="partCBody"></div>
+      <p><button id="wrapupBtn" type="button">Save wrap-up &amp; complete visit</button></p>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* =====================================================================
+ * Business Feedback wizard — data-driven from the Nov 12 questionnaire.
+ * FIELDS below mirror Part A (A1–A10), the six Part B modules and
+ * Part C, with the questionnaire's own wording and options.
+ * ===================================================================== */
+const TYPES = [
+  ['cloth', 'Cloth / Textile'], ['vegetable', 'Vegetable'], ['restaurant', 'Restaurant'],
+  ['grocery', 'Grocery / Kirana'], ['lawyer', 'Lawyer'], ['doctor', 'Doctor office'],
+];
+const TYPE_LABEL = Object.fromEntries(TYPES);
+const FEE_OPTIONS = [
+  ['lt_500', '< ₹500'], ['500_1000', '₹500–1,000'], ['1000_2500', '₹1,000–2,500'],
+  ['2500_5000', '₹2,500–5,000'], ['see_it_work', 'Need to see it working first'],
+];
+const PAINS = ['Orders / calls missed when busy', 'Customers cannot reach us / no response after shop hours',
+  'Billing takes too long / billing mistakes', 'Stock confusion — what is available, what finished',
+  'Credit (khata) tracking and recovery', 'Delivery confusion — who went, what is pending',
+  'Prices / rates confusion among staff', 'Follow-ups forgotten (reminders, repeat orders, pending work)',
+  'Too much work depends on the owner personally', 'Getting NEW customers is hard',
+  'Platform commissions eating margin (Swiggy / Zomato / others)', 'Paper records hard to search (old bills, old cases, old patients)'];
+
+const T = (k, label, extra) => Object.assign({ k, label, type: 'text' }, extra || {});
+const TA = (k, label, extra) => Object.assign({ k, label, type: 'textarea' }, extra || {});
+const SEL = (k, label, options, extra) => Object.assign({ k, label, type: 'select', options }, extra || {});
+const CHK = (k, label, options, extra) => Object.assign({ k, label, type: 'checks', options }, extra || {});
+
+const PART_A = [
+  { id: 'A1', title: 'A1. Business profile', fields: [
+    T('business_name', '1. Business name (as on the board)'),
+    T('owner_name', '2. Owner name'),
+    T('decision_maker', '2b. Who takes decisions about spending'),
+    T('owner_whatsapp', '3. Owner mobile / WhatsApp number (the number customers should reach)', { type: 'tel' }),
+    TA('address', '4. Full address + landmark'),
+    T('town', '4b. Town / area'),
+    T('years_in_business', '5. Years in business'),
+    SEL('trade_type', '5b. Business type', ['Retail', 'Wholesale', 'Both']),
+    CHK('registration', '6. Registration', ['GSTIN', 'Trade licence', 'Udyam', 'None']),
+    T('gstin', '6b. GSTIN (if any)'),
+    CHK('languages', '7. Languages your customers speak', ['Telugu', 'English', 'Hindi', 'Other']),
+    T('languages_other', '7b. Other language'),
+    T('shop_timings', '8. Shop timings (open–close, weekly holiday)'),
+  ]},
+  { id: 'A2', title: 'A2. People & daily operations', fields: [
+    TA('staff', '9. How many people work here (including owner)? Who does what — selling, billing, delivery, phone?'),
+    TA('call_handling', '10. Who attends customer calls / WhatsApp today? What happens to those calls when that person is busy or absent?'),
+    TA('single_person', '11. Which work depends on ONE person only (billing, rates, supplier contacts)?'),
+    T('busy_hours', '12. Busiest hours of the day'),
+    T('slow_hours', '12b. Slowest hours'),
+    T('system_operator', '13. Who will operate a new system daily — owner / staff? Their age'),
+    SEL('smartphone_comfort', '13b. Their comfort with smartphone apps', ['low', 'medium', 'good']),
+  ]},
+  { id: 'A3', title: 'A3. Customers — how orders / clients / patients come today', fields: [
+    TA('customers', '14. Who are your customers? (households / other shops / offices / walk-ins)'),
+    T('radius_km', '14b. Approx. radius customers come from (km)'),
+    T('orders_weekday', '15. Approx. customers / orders per day — weekday'),
+    T('orders_weekend', '15b. Approx. customers / orders per day — weekend'),
+    T('ch_walkin', '16. Orders per day — Walk-in'),
+    T('ch_phone', '16b. Orders per day — Phone call'),
+    T('ch_whatsapp_personal', '16c. Orders per day — WhatsApp (personal number)'),
+    T('ch_whatsapp_business', '16d. Orders per day — WhatsApp Business app'),
+    T('ch_app_name', '16e. Any app / platform used (name)'),
+    T('ch_app_count', '16f. Orders per day — through that app / platform'),
+    T('ch_agents', '16g. Orders per day — Through staff / agents'),
+    CHK('discovery', '17. How do NEW customers find you today?', ['Shop board', 'Word of mouth', 'Google search / maps', 'WhatsApp status / forwards', 'Ads / pamphlets', 'Other']),
+    T('discovery_other', '17b. Other — how?'),
+    TA('busy_happens', '18. When the shop is busy, what happens to calls and messages?'),
+    T('missed_per_week', '18b. Estimated orders / enquiries missed in a week', { type: 'number' }),
+    TA('repeat_customers', '19. Regular / repeat customers: approx. how many? How do they re-order or come back today?'),
+  ]},
+  { id: 'A4', title: "A4. Today's flow, step by step", fields: [
+    TA('flow_steps', '20. Step by step (enquiry → price / confirmation → billing → payment → delivery / service → if something goes wrong) — walk through one typical order from yesterday'),
+    TA('delays_mistakes', '21. In this flow, where do delays happen most? Where do mistakes happen most (wrong item, wrong price, missed delivery, forgotten follow-up)?'),
+    TA('paper_records', '22. What is done on paper today (notebooks, bill books, registers)? Which of those papers is hardest to search later?'),
+  ]},
+  { id: 'A5', title: 'A5. What you sell / offer — catalogue & prices', fields: [
+    T('items_count', '23. Approx. how many items / services in total?'),
+    T('top_categories', '23b. Main categories (top 5)'),
+    SEL('price_list', '24. Is there a written price list / menu / fee chart?', ['Yes (collect photo/copy)', "No — prices are in owner's head"]),
+    SEL('price_change_freq', '25. How often do prices change?', ['Daily', 'Weekly', 'Monthly', 'Rarely']),
+    T('price_change_how', '25b. Who changes prices, and how do staff learn the new price?'),
+    TA('differential_rates', '26. Are rates different for different customers (retail vs wholesale, regulars)? How is that decided today?'),
+    TA('unsupplied', '27. Any items / services customers ask for that you cannot supply today?'),
+  ]},
+  { id: 'A6', title: 'A6. Billing, payments & credit', fields: [
+    SEL('billing_method', '28. Billing today', ['Bill book (handwritten)', 'Billing software', 'Computer + printer', 'No bill given']),
+    T('billing_software_name', '28b. Billing software name (if any)'),
+    SEL('gst_billing', '29. GST billing', ['GST bills for all sales', 'GST bills only when asked', 'No GST billing']),
+    T('pay_cash', '30. Payment split — cash %', { type: 'number' }),
+    T('pay_upi', '30b. Payment split — UPI %', { type: 'number' }),
+    T('pay_card', '30c. Payment split — card %', { type: 'number' }),
+    T('pay_credit', '30d. Payment split — credit (khata / udhaar) %', { type: 'number' }),
+    TA('credit', '31. Credit given to customers? To whom, approx. how many accounts, how is it written and recovered? Amount usually outstanding (range)?'),
+    SEL('daily_sales_range', '32. Daily sales / collection range (optional)', ['< ₹5k', '₹5–15k', '₹15–50k', '₹50k–1.5L', '> ₹1.5L']),
+    TA('eod_tally', "33. End of day: how do you know today's total sale and cash? How long does that take?"),
+  ]},
+  { id: 'A7', title: 'A7. Pain points — ask the owner to rank', fields: [
+    CHK('pains', 'Pain points that apply (tick all)', PAINS),
+    SEL('pain_top1', 'TOP 1 pain', PAINS),
+    SEL('pain_top2', 'TOP 2 pain', PAINS),
+    SEL('pain_top3', 'TOP 3 pain', PAINS),
+    TA('fix_one_thing', '34. In the owner\u2019s own words — "If one thing could be fixed tomorrow, what should it be?"'),
+  ]},
+  { id: 'A8', title: 'A8. Tech readiness', fields: [
+    TA('smartphones', '35. Smartphones in the shop: how many, whose, Android / iPhone? Is the shop number on WhatsApp?'),
+    CHK('internet', '36. Internet at the shop', ['Mobile data', 'WiFi / broadband', 'Weak signal']),
+    T('internet_details', '36b. Internet details (if weak signal)'),
+    CHK('equipment', '37. Computer / laptop / printer available?', ['Computer', 'Printer', 'None']),
+    T('printer_type', '37b. Printer type (if any)'),
+    T('software_used', '38. Software used today (Tally, Vyapar, billing app, Excel, any clinic / case software)'),
+    TA('previous_app', '39. Have you tried any app or system before? What happened — why did it stop?'),
+    T('language_need', '40. If the system speaks to customers on WhatsApp in Telugu + English, is that enough, or is another language needed?'),
+  ]},
+  { id: 'A9', title: 'A9. Goal, decision & pilot', fields: [
+    CHK('improve_first', '41. "If this system works well, what should improve first?"', ['More orders / clients', 'Fewer missed enquiries', 'Less time in billing / records', 'Better credit recovery', 'Less dependence on me', 'Other']),
+    T('improve_other', '41b. Other — what?'),
+    T('extra_orders', '42. How many EXTRA orders / clients per month would make it clearly worth it?'),
+    T('spend_ads', '43. Current monthly spend — ads / pamphlets ₹'),
+    T('spend_software', '43b. Current monthly spend — software ₹'),
+    T('spend_commissions', '43c. Current monthly spend — platform commissions ₹'),
+    SEL('fee_comfort', '44. Monthly-fee range that feels reasonable (like a phone recharge — no big upfront cost)', FEE_OPTIONS.map(o => o[0]), { labels: Object.fromEntries(FEE_OPTIONS) }),
+    SEL('pilot_interest', '45. Can we run a free pilot with your REAL orders for 2 weeks?', ['Yes', 'No', 'After seeing a demo']),
+    T('final_decider', '46. Who finally decides — you alone, partner, family? Name + relation'),
+    T('callback_name', '47. Best person for our office to call with the setup plan'),
+    T('callback_time', '47b. Best time to call'),
+  ]},
+];
+
+const SAMPLES = [
+  ['bill_sample', 'Bill book / invoice sample (photo)'],
+  ['price_list', 'Price list / menu / fee chart (photo or copy)'],
+  ['shop_front', 'Shop front + board photo (with permission)'],
+  ['visiting_card', 'Visiting card / pamphlet'],
+  ['catalogue', 'Catalogue / product photos, if any'],
+  ['software_screen', 'Existing app / software screen the staff use daily (photo)'],
+];
+
+const PART_B = {
+  cloth: { title: 'B1. Cloth / Textile store', fields: [
+    T('sales_mix', '1. Sales mix: retail % / wholesale %'),
+    CHK('categories', '2. Main categories sold', ['Innerwear', 'Sarees', 'Dress materials', 'Readymade garments', 'School uniforms', 'Hosiery', 'Other']),
+    CHK('order_format', '3. When outside customers order, what do they send?', ['Item name + size', 'Photo of the item', 'Voice message', 'They call and describe']),
+    T('variants', '4. For one item (say a vest), how many variants — brands, sizes, colours? Approx total variants in the shop'),
+    TA('buying', '5. Buying: which towns / suppliers (Tirupur, Surat, local)? How often do you buy, and how do goods come (parcel service name)?'),
+    T('packs', '6. Do packs / boxes matter (pieces per box)? For selling, do you quote per piece or per box?'),
+    SEL('discount', '7. Discount practice', ['Fixed price', 'Bargaining is normal', 'Fixed for regulars, bargaining for new']),
+    TA('returns', '8. Returns / exchange: what does the board say, and what do you actually accept in practice?'),
+    T('peak_seasons', '9. Peak seasons (festivals, school opening, marriage season) and what breaks first in peak time'),
+    SEL('stock', '10. Stock: how do you know what is in stock and what is finishing?', ['Memory', 'Notebook', 'Software', 'Physical check']),
+    TA('wholesale_buyers', '11. Wholesale buyers: approx. how many regular shops buy from you? How do they re-order, and is credit given to them?'),
+    TA('whatsapp_change', '12. If customers could send their list on WhatsApp, see rates, confirm, and get a proper bill + delivery status at home — what would that change for you?'),
+  ]},
+  vegetable: { title: 'B2. Vegetable store', fields: [
+    T('sourcing', '1. Sourcing: which mandi / market, what time do you go daily, own vehicle or hired?'),
+    T('price_fixing', "2. How are today's selling prices fixed each morning? Do prices change again during the day?"),
+    T('items', '3. Approx. how many items on a normal day? Which items sell out first most days?'),
+    T('wastage', '4. Wastage: approx. how much (kg or %) is unsold / spoiled per day? What happens to leftovers?'),
+    SEL('delivery', '5. Home delivery today', ['No', 'Yes']),
+    T('delivery_details', '5b. Delivery: radius km, minimum order ₹, who delivers, any charge?'),
+    T('regulars', '6. Regular households: approx. how many order daily / weekly?'),
+    CHK('regulars_how', '6b. How do regular households order?', ['Walk in', 'Phone', 'WhatsApp', 'Written list given in advance']),
+    T('khata', '7. Credit (khata) to households: how many accounts, how written, when settled?'),
+    SEL('counter_billing', '8. Billing at the counter: weighing + total by', ['Calculator', 'Paper', 'App', 'Memory']),
+    SEL('bill_given', '8b. Is a bill given?', ['Yes', 'No']),
+    T('whatsapp_slots', '9. If households send their list on WhatsApp in the morning, by what time could you pack and deliver? What delivery slots suit you (morning / evening)?'),
+    CHK('biggest_loss', '10. What loses you the most money today', ['Wastage', 'Missed orders', 'Credit not returned', 'Price mistakes', 'Other']),
+  ]},
+  restaurant: { title: 'B3. Restaurant / Hotel / Eatery', fields: [
+    SEL('type', '1. Type', ['Meals hotel', 'Tiffin / breakfast', 'Fast food', 'Cafe / bakery', 'Other']),
+    T('seats', '1b. Seats'),
+    T('mix', '2. Mix: dine-in % / takeaway % / delivery %'),
+    T('menu_items', '3. Menu: total items, daily specials?'),
+    SEL('menu_format', '3b. Menu is', ['Printed', 'Board', 'Digital / QR', 'None']),
+    T('menu_price_change', '3c. Menu prices change how often?'),
+    CHK('outside_orders', '4. Outside orders today', ['Phone', 'Swiggy / Zomato', 'Own delivery', 'None']),
+    T('commission', '4b. Platform commission % (if Swiggy / Zomato)'),
+    SEL('kitchen_flow', '5. Kitchen order flow', ['Written slip', 'Verbal', 'KOT / software']),
+    T('kitchen_mistakes', '5b. Where do mistakes happen (wrong item, missed item, delay)?'),
+    TA('bulk_orders', '6. Advance / bulk orders (functions, offices, parties): how are they taken and tracked today?'),
+    TA('repeat_customers', '7. Repeat customers: any record of them? Any offers / combos run today?'),
+    T('delivery', '8. Home delivery: radius km, minimum order ₹, who delivers?'),
+    CHK('headache', '9. Biggest daily headache', ['Order mistakes', 'Billing queue', 'Platform commissions', 'Staff shortage', 'Wastage', 'Other']),
+    SEL('own_whatsapp_interest', '10. If your OWN WhatsApp ordering (no commission) brought direct orders with the bill ready, how interested are you?', ['Very', 'Somewhat', 'Not now']),
+  ]},
+  grocery: { title: 'B4. Grocery / Kirana store', fields: [
+    T('skus', '1. Approx. how many different products (SKUs)?'),
+    T('categories', '1b. Main categories'),
+    T('khata_households', '2. Monthly khata households: how many?'),
+    SEL('khata_tracked', '2b. Khata tracked in', ['Notebook', 'App', 'Memory']),
+    T('khata_app', '2c. Khata app name (if app)'),
+    T('khata_settlement', '2d. Settlement happens when?'),
+    T('orders', '3. Orders today per day: walk-in / phone / WhatsApp'),
+    T('delivery', '4. Home delivery: radius, minimum order ₹, who delivers, delivery timings'),
+    SEL('billing', '5. Billing', ['Software', 'Barcode scanner', 'Manual / calculator']),
+    T('billing_software', '5b. Billing software name (if any)'),
+    T('expiry', '6. Expiry: how do you catch expired items today? Approx loss per month from expiry (range)?'),
+    T('suppliers', '7. Suppliers: how many? Ordering by phone / salesman visit / app — delivery in how many days?'),
+    T('stockouts', '8. Stock-outs: how do you learn an item has finished? How is the reorder list made?'),
+    T('monthly_list', '9. If regular households sent their monthly list on WhatsApp and got ONE monthly bill (khata automatic), would that help? How many households might use it?'),
+    CHK('biggest_pain', '10. Biggest pain', ['Khata tracking', 'Stock-outs', 'Expiry loss', 'Billing speed', 'Delivery handling', 'Other']),
+  ]},
+  lawyer: { title: 'B5. Lawyer / Advocate', fields: [
+    CHK('practice_areas', '1. Practice areas', ['Civil', 'Criminal', 'Family', 'Property / registration', 'Consumer', 'Other']),
+    T('cases', '2. Active cases: approx. / New clients per month: approx.'),
+    CHK('client_sources', '3. How do new clients reach you?', ['Referrals', 'Court premises', 'Google / online', 'Phone from old clients', 'Other']),
+    T('consultation_fee', '4. First consultation: fee ₹'),
+    SEL('consultation_booking', '4b. Consultation booked how', ['Walk-in', 'Phone appointment', 'Through clerk']),
+    SEL('hearing_tracking', '5. Hearing dates: how tracked today', ['Diary', 'Register', 'Excel / software', 'Memory']),
+    T('hearing_software', '5b. Excel / software name (if any)'),
+    T('hearing_who', '5c. Who maintains the hearing dates?'),
+    TA('status_calls', '6. Client status calls: approx. how many per day? How much of your / your clerk\u2019s day goes in answering "what happened to my case?"'),
+    CHK('documents_via', '7. Client documents: collected', ['In person', 'WhatsApp', 'Email']),
+    T('documents_filed', '7b. Documents filed how (physical file per case? scanned?)'),
+    T('staff', '8. Staff: juniors / clerks — who maintains files, dates and client updates?'),
+    T('courts', '9. Courts attended (towns / courts list)'),
+    TA('fees', '10. Fees: how is who-paid / who-is-pending recorded today? Any difficulty in fee follow-up?'),
+    TA('reminders_value', '11. If clients automatically got hearing-date reminders and could see their case status without calling you, what would that free up for you?'),
+    SEL('system_interest', '12. Interest in a system covering: client intake → case file → hearing reminders → client updates', ['Very', 'Somewhat', 'Not now']),
+  ]},
+  doctor: { title: 'B6. Doctor office / Clinic', fields: [
+    T('practice', '1. Type of practice / specialty'),
+    T('doctors_count', '1b. Doctors in the clinic'),
+    T('op_timings', '2. OP timings and days'),
+    T('patients_per_day', '2b. Patients per day (range)'),
+    T('seasonal', '2c. Seasonal variation?'),
+    T('appt_split', '3. Appointments % / walk-in %'),
+    CHK('booking_via', '3b. Booking today by', ['Phone', 'Register at reception', 'Walk-in token only', 'App']),
+    T('booking_app', '3c. Booking app name (if any)'),
+    T('waiting', '4. Peak waiting time (minutes)'),
+    T('noshows', '4b. Patients who take a token and don\u2019t return (no-shows) per day'),
+    T('followups', '5. Follow-up patients (BP, diabetes, reviews): approx. how many under follow-up?'),
+    SEL('followup_reminders', '5b. Follow-up patients are reminded today', ['No system', 'Staff calls', 'Patient remembers']),
+    T('fee', '6. Consultation fee ₹'),
+    CHK('payment_modes', '6b. Payment modes', ['Cash', 'UPI', 'Card']),
+    T('reports', '7. Reports: patients bring lab reports as paper / photo on phone — between visits, do you review reports remotely?'),
+    SEL('pharmacy', '8. Pharmacy', ['Attached', 'Nearby tie-up', 'None']),
+    T('repeat_rx', '8b. Repeat prescriptions for chronic patients handled how?'),
+    SEL('records', '9. Patient records today', ['Paper files', 'Software']),
+    T('records_software', '9b. Records software name (if any)'),
+    T('history_time', '9c. How long to pull an old patient\u2019s history?'),
+    T('staff', '10. Staff: receptionist / compounder — who manages the queue, calls and follow-ups?'),
+    TA('whatsapp_value', '11. If patients could book on WhatsApp / phone, get queue updates, and receive follow-up reminders automatically — what improves most for you?'),
+    T('after_hours', '12. After-hours / emergency calls: how handled today?'),
+  ]},
+};
+
+const PART_C = [
+  SEL('template_fit', '2. Which template fits this business?', ['ordering', 'scheduler', 'case_manager', 'custom'],
+    { labels: { ordering: 'Ordering app (order → approve → invoice → delivery)', scheduler: 'Appointment scheduler (slots + reminders)', case_manager: 'Case manager (files + hearing reminders)', custom: 'Custom' } }),
+  T('template_custom', '2b. If custom — describe'),
+  SEL('fit_score', '3. Fit score for our standard product', ['ready', 'small_changes', 'major_custom', 'not_a_fit'],
+    { labels: { ready: 'Ready fit', small_changes: 'Fit with small changes', major_custom: 'Needs major custom work', not_a_fit: 'Not a fit' } }),
+  T('fit_why', '3b. If not a fit — why'),
+  CHK('data_readiness', '4. Setup data readiness', ['Price list / menu / fee chart collected', 'Bill sample collected', 'Catalogue photos exist', 'None — must be created']),
+  SEL('decision_maker_met', '5. Decision maker', ['Met and positive', 'Met, neutral', 'Not met', 'Met and negative']),
+  T('met_whom', '5b. If not met — who was met instead'),
+  SEL('interest_level', '6. Interest level', ['hot', 'warm', 'cold', 'no'],
+    { labels: { hot: 'Hot — asked "when can we start?"', warm: 'Warm — positive, wants demo / details', cold: 'Cold — polite, no clear need', no: 'No — refused' } }),
+  T('top_pain', '7. Owner\u2019s TOP pain in one line (their words)'),
+  TA('fee_reaction', '8. What did the owner say when the monthly-fee idea came up (reaction, any number they mentioned)?'),
+  SEL('pilot_status', '9. Pilot agreed?', ['yes', 'demo_first', 'after_office_call', 'no'],
+    { labels: { yes: 'Yes', demo_first: 'Wants demo first', after_office_call: 'Will decide after office call', no: 'No' } }),
+  T('pilot_date', '9b. Pilot start date', { type: 'date' }),
+  T('next_step', '10. Next step (office to call / demo visit / setup data collection / drop)'),
+  T('next_step_date', '10b. Next step date', { type: 'date' }),
+  TA('notes', '11. Anything unusual: competitor already using a system (name), special request, language issue, partner/family decision pending, etc.'),
+];
+</script>
+<script>
+'use strict';
+/* ============================ app logic ============================ */
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+let me = null;
+let current = null;      // visit being edited (object from the API)
+let step = 0;
+let saveTimer = null;
+let saving = false;
+
+const STEPS = [
+  { title: 'Start', sections: [] },                                   // business type + date (custom)
+  { title: 'Profile & people', sections: ['A1', 'A2'] },
+  { title: 'Customers', sections: ['A3'] },
+  { title: 'Flow & catalogue', sections: ['A4', 'A5'] },
+  { title: 'Billing, pains, tech', sections: ['A6', 'A7', 'A8'] },
+  { title: 'Goal & pilot', sections: ['A9'] },
+  { title: 'Samples', sections: [] },                                 // A10 (custom)
+  { title: 'Type module', sections: [] },                             // Part B (custom)
+  { title: 'Review', sections: [] },                                  // review + submit (custom)
+];
+
+async function api(path, opts) {
+  const r = await fetch(path, Object.assign({ headers: { 'Content-Type': 'application/json' } }, opts || {}));
+  if (r.status === 401) { window.location.href = '/login'; throw new Error('login required'); }
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) { const e = new Error(data.error || ('request failed (' + r.status + ')')); e.status = r.status; e.data = data; throw e; }
+  return data;
+}
+
+function showError(id, msg) { const el = $(id); el.textContent = msg || ''; el.style.display = msg ? 'block' : 'none'; }
+
+/* ---------------- field rendering / reading ---------------- */
+function fieldHtml(f, scope, values) {
+  const v = values ? values[f.k] : undefined;
+  const label = `<label class="flabel" for="${scope}_${f.k}">${esc(f.label)}</label>`;
+  if (f.type === 'textarea') return label + `<textarea id="${scope}_${f.k}" data-scope="${scope}" data-key="${f.k}">${esc(v || '')}</textarea>`;
+  if (f.type === 'select') {
+    const opts = ['<option value="">— select —</option>'].concat(f.options.map(o =>
+      `<option value="${esc(o)}" ${v === o ? 'selected' : ''}>${esc((f.labels && f.labels[o]) || o)}</option>`)).join('');
+    return label + `<select id="${scope}_${f.k}" data-scope="${scope}" data-key="${f.k}">${opts}</select>`;
+  }
+  if (f.type === 'checks') {
+    const arr = Array.isArray(v) ? v : [];
+    return label + '<div class="checks">' + f.options.map(o =>
+      `<label><input type="checkbox" data-scope="${scope}" data-key="${f.k}" value="${esc(o)}" ${arr.includes(o) ? 'checked' : ''}> ${esc(o)}</label>`).join('') + '</div>';
+  }
+  return label + `<input type="${f.type || 'text'}" id="${scope}_${f.k}" data-scope="${scope}" data-key="${f.k}" value="${esc(v || '')}">`;
+}
+
+function readScope(scope) {
+  const out = {};
+  document.querySelectorAll(`[data-scope="${scope}"]`).forEach(el => {
+    const k = el.dataset.key;
+    if (el.type === 'checkbox') {
+      out[k] = out[k] || [];
+      if (el.checked) out[k].push(el.value);
+    } else {
+      out[k] = el.value;
+    }
+  });
+  return out;
+}
+
+function sectionsHtml(ids, scope, values) {
+  return ids.map(id => {
+    const sec = PART_A.find(s => s.id === id);
+    return `<h2>${esc(sec.title)}</h2>` + sec.fields.map(f => fieldHtml(f, scope, values)).join('');
+  }).join('');
+}
+
+/* ---------------- payload ---------------- */
+function currentType() {
+  if (step === 0) {
+    const el = document.querySelector('input[name="btype"]:checked');
+    return el ? el.value : (current && current.business_type) || null;
+  }
+  return (current && current.business_type) || null;
+}
+
+function buildPayload() {
+  const a = Object.assign({}, current && current.part_a, readScope('a'));
+  const type = currentType();
+  // Only the Part B step renders scope-'b' inputs; reading it elsewhere
+  // would return {} and wipe the stored module answers.
+  const bmod = (step === 7 && type && PART_B[type]) ? readScope('b') : null;
+  const partB = Object.assign({}, current && current.part_b);
+  if (type && bmod) partB[type] = bmod;
+  const orders = (a.orders_weekday || a.orders_weekend)
+    ? `Weekday ${a.orders_weekday || '-'} · Weekend ${a.orders_weekend || '-'}` : null;
+  if (orders) a.orders_per_day = orders;
+  const dateEl = $('visit_date');
+  return {
+    business_type: type,
+    business_name: a.business_name || null,
+    town: a.town || null,
+    owner_name: a.owner_name || null,
+    owner_whatsapp: a.owner_whatsapp || null,
+    visit_date: dateEl ? dateEl.value : (current && current.visit_date) || null,
+    orders_per_day: orders,
+    missed_enquiries_per_week: a.missed_per_week === '' ? null : a.missed_per_week,
+    fee_comfort: a.fee_comfort || null,
+    part_a: a,
+    part_b: partB,
+  };
+}
+
+async function saveDraft() {
+  if (!current || current.status === 'completed') return;
+  if (saving) return;
+  saving = true;
+  $('saveState').textContent = 'Saving…';
+  try {
+    const payload = buildPayload();
+    if (!current.id) {
+      current = await api('/api/visits', { method: 'POST', body: JSON.stringify(payload) });
+      $('wizTitle').textContent = 'Visit #' + current.id + ' (draft)';
+    } else {
+      const updated = await api('/api/visits/' + current.id, { method: 'PUT', body: JSON.stringify(payload) });
+      current = Object.assign({}, current, updated);
+    }
+    $('saveState').textContent = 'Draft saved ' + new Date().toLocaleTimeString();
+  } catch (e) {
+    $('saveState').textContent = 'Save failed — keep this tab open and check connection';
+  } finally { saving = false; }
+}
+
+function scheduleSave() {
+  if (!current || current.status !== 'draft') return;
+  $('saveState').textContent = 'Unsaved changes…';
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveDraft, 1200);
+}
+
+/* ---------------- wizard rendering ---------------- */
+function renderStep() {
+  document.querySelectorAll('#stepper span').forEach((el, i) => el.classList.toggle('on', i === step));
+  const body = $('stepBody');
+  const a = (current && current.part_a) || {};
+  const type = currentType();
+  let html = '';
+
+  if (step === 0) {
+    html = '<h2 style="margin-top:0;">Business type</h2><div class="types">' + TYPES.map(([code, label]) =>
+      `<label data-type="${code}" class="${type === code ? 'sel' : ''}"><input type="radio" name="btype" value="${code}" ${type === code ? 'checked' : ''}> ${esc(label)}</label>`).join('') +
+      '</div>' +
+      `<label class="flabel" for="visit_date">Visit date</label><input type="date" id="visit_date" value="${esc((current && current.visit_date ? String(current.visit_date).slice(0, 10) : '') || new Date().toISOString().slice(0, 10))}">` +
+      '<p class="sub" style="margin-top:14px;">The type decides which Part B module appears later. Everything else (Part A) is asked for every business.</p>';
+  } else if (step >= 1 && step <= 5) {
+    html = sectionsHtml(STEPS[step].sections, 'a', a);
+  } else if (step === 6) {
+    const samples = Array.isArray(a.samples) ? a.samples : [];
+    const atts = (current && current.attachments) || [];
+    html = '<h2 style="margin-top:0;">A10. Samples collected (tick + upload photo)</h2>' +
+      '<div class="checks">' + SAMPLES.map(([kind, label]) =>
+        `<label><input type="checkbox" data-scope="a" data-key="samples" value="${kind}" ${samples.includes(kind) ? 'checked' : ''}> ${esc(label)}</label>`).join('') + '</div>' +
+      '<h2>Upload photos</h2><p class="sub">Photos upload to this visit (the draft is created automatically first). JPG / PNG / WebP, max 5 MB each. Ask permission before photographing.</p>' +
+      SAMPLES.map(([kind, label]) =>
+        `<div class="upload-row"><span class="k">${esc(label)}</span><input type="file" id="file_${kind}" accept="image/jpeg,image/png,image/webp"><button type="button" class="ghost" data-upload="${kind}">Upload</button></div>`).join('') +
+      '<h2>Uploaded</h2>' + (atts.length
+        ? atts.map(x => `<p><a href="/api/attachments/${x.id}" target="_blank" rel="noopener">${esc(x.kind)}</a> <span class="sub">— ${esc(x.uploaded_by)}, ${esc(String(x.created_at).slice(0, 16).replace('T', ' '))}</span></p>`).join('')
+        : '<p class="sub">Nothing uploaded yet.</p>');
+  } else if (step === 7) {
+    if (!type || !PART_B[type]) {
+      html = '<h2 style="margin-top:0;">Type module</h2><p class="sub">Pick the business type in Step 1 (Start) first — the matching Part B module appears here.</p>';
+    } else {
+      const mod = PART_B[type];
+      html = `<h2 style="margin-top:0;">${esc(mod.title)}</h2>` + mod.fields.map(f => fieldHtml(f, 'b', (current.part_b || {})[type] || {})).join('');
+    }
+  } else if (step === 8) {
+    const p = buildPayload();
+    const rows = [
+      ['Business type', TYPE_LABEL[p.business_type] || ''], ['Business name', p.business_name], ['Town', p.town],
+      ['Owner', p.owner_name], ['Owner WhatsApp', p.owner_whatsapp], ['Visit date', p.visit_date],
+      ['Orders / day', p.orders_per_day], ['Missed enquiries / week', p.missed_enquiries_per_week],
+      ['Fee comfort', (Object.fromEntries(FEE_OPTIONS)[p.fee_comfort]) || ''],
+      ['Top pain (A7)', p.part_a.pain_top1], ['One thing to fix (A7)', p.part_a.fix_one_thing],
+      ['Pilot interest (A9)', p.part_a.pilot_interest],
+    ];
+    const missing = [];
+    if (!p.business_type) missing.push('business type');
+    if (!p.business_name) missing.push('business name');
+    if (!p.town) missing.push('town');
+    if (!p.owner_whatsapp) missing.push('owner WhatsApp number');
+    html = '<h2 style="margin-top:0;">Review &amp; submit</h2><dl class="review">' +
+      rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v || '—')}</dd>`).join('') + '</dl>' +
+      (missing.length ? `<p class="sub" style="color:var(--err); margin-top:14px;">Still needed before submit: ${esc(missing.join(', '))}. Use Back to fill them.</p>`
+                      : '<p class="sub" style="margin-top:14px;">All required fields are filled. Submit when the visit is done — Part C is filled afterwards.</p>');
+  }
+
+  body.innerHTML = html;
+  $('backBtn').disabled = step === 0;
+  $('nextBtn').classList.toggle('hidden', step === STEPS.length - 1);
+  $('submitBtn').classList.toggle('hidden', step !== STEPS.length - 1);
+
+  body.querySelectorAll('input, select, textarea').forEach(el => {
+    el.addEventListener('change', scheduleSave);
+    el.addEventListener('input', scheduleSave);
+  });
+  body.querySelectorAll('.types label').forEach(l => l.addEventListener('click', () => {
+    body.querySelectorAll('.types label').forEach(x => x.classList.remove('sel'));
+    l.classList.add('sel');
+    if (current) current.business_type = l.dataset.type;
+    scheduleSave();
+  }));
+  body.querySelectorAll('[data-upload]').forEach(btn => btn.addEventListener('click', () => uploadPhoto(btn.dataset.upload)));
+}
+
+async function uploadPhoto(kind) {
+  const input = $('file_' + kind);
+  if (!input || !input.files || !input.files[0]) { showError('wizError', 'Choose a photo for ' + kind + ' first.'); return; }
+  showError('wizError', '');
+  await saveDraft();
+  if (!current || !current.id) { showError('wizError', 'Could not create the draft — check connection and try again.'); return; }
+  const fd = new FormData();
+  fd.append('kind', kind);
+  fd.append('file', input.files[0]);
+  try {
+    const r = await fetch('/api/visits/' + current.id + '/attachments', { method: 'POST', body: fd });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.error || 'upload failed');
+    current.attachments = (current.attachments || []).concat([data]);
+    const a = readScope('a');
+    if (Array.isArray(a.samples) && !a.samples.includes(kind)) { /* tick stays manual; upload is the record */ }
+    renderStep();
+  } catch (e) { showError('wizError', e.message); }
+}
+
+function gotoStep(n) {
+  step = Math.max(0, Math.min(STEPS.length - 1, n));
+  renderStep();
+  window.scrollTo(0, 0);
+}
+
+/* ---------------- views ---------------- */
+function showList() {
+  $('wizardView').classList.add('hidden');
+  $('listView').classList.remove('hidden');
+  loadVisits();
+  if (me && (me.role === 'manager' || me.role === 'owner')) loadDashboard();
+}
+
+function openWizard(visit) {
+  current = visit || { status: 'draft', part_a: {}, part_b: {}, part_c: {}, attachments: [] };
+  step = 0;
+  $('listView').classList.add('hidden');
+  $('wizardView').classList.remove('hidden');
+  $('wizTitle').textContent = current.id ? `Visit #${current.id} (${current.status})` : 'New visit';
+  $('stepper').innerHTML = STEPS.map((s, i) => `<span data-step="${i}">${i + 1}. ${esc(s.title)}</span>`).join('');
+  document.querySelectorAll('#stepper span').forEach(el => el.addEventListener('click', async () => { await saveDraft(); gotoStep(Number(el.dataset.step)); }));
+  renderStep();
+  renderPartC();
+  window.scrollTo(0, 0);
+}
+
+function renderPartC() {
+  const panel = $('partCPanel');
+  if (!current || !current.id || current.status === 'draft') { panel.classList.add('hidden'); return; }
+  panel.classList.remove('hidden');
+  $('partCBody').innerHTML = PART_C.map(f => fieldHtml(f, 'c', current.part_c || {})).join('');
+}
+
+async function loadVisits() {
+  try {
+    const rows = await api('/api/visits');
+    $('visitsBody').innerHTML = rows.length ? rows.map(v =>
+      `<tr><td>${esc(String(v.visit_date || '').slice(0, 10))}</td><td>${esc(v.business_name || '(no name yet)')}</td>` +
+      `<td>${esc(TYPE_LABEL[v.business_type] || '')}</td><td>${esc(v.town || '')}</td>` +
+      `<td><span class="pill ${esc(v.status)}">${esc(v.status)}</span></td>` +
+      `<td><button type="button" class="ghost" data-open="${v.id}">${v.status === 'draft' ? 'Continue' : 'Open'}</button></td></tr>`).join('')
+      : '<tr><td colspan="6" style="color:var(--muted);">No visits yet. Start with “+ New visit”.</td></tr>';
+    document.querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', async () => {
+      try { openWizard(await api('/api/visits/' + b.dataset.open)); }
+      catch (e) { showError('listError', e.message); }
+    }));
+  } catch (e) { showError('listError', e.message); }
+}
+
+async function loadDashboard() {
+  try {
+    const d = await api('/api/dashboard');
+    $('dashCard').classList.remove('hidden');
+    const card = (n, label) => `<div class="count"><b>${esc(n)}</b><span>${esc(label)}</span></div>`;
+    $('dashCounts').innerHTML =
+      card(d.total_visits, 'Total visits') + card(d.hot_leads, 'Hot leads') + card(d.warm_leads, 'Warm leads') +
+      card(d.pilots_agreed, 'Pilots agreed') + card(d.demo_first, 'Want demo first') +
+      card(d.by_fit_score.ready || 0, 'Ready fit') + card(d.by_fit_score.small_changes || 0, 'Fit, small changes') +
+      card(d.by_fit_score.major_custom || 0, 'Major custom') + card(d.by_fit_score.not_a_fit || 0, 'Not a fit');
+    $('dashTypes').innerHTML = TYPES.map(([code, label]) => card(d.by_type[code] || 0, label)).join('');
+  } catch (e) { /* employees never reach here; managers see the visits list regardless */ }
+}
+
+/* ---------------- wiring ---------------- */
+$('newVisitBtn').addEventListener('click', () => openWizard(null));
+$('backBtn').addEventListener('click', async () => { await saveDraft(); gotoStep(step - 1); });
+$('nextBtn').addEventListener('click', async () => {
+  showError('wizError', '');
+  if (step === 0 && !currentType()) { showError('wizError', 'Pick the business type first.'); return; }
+  await saveDraft();
+  gotoStep(step + 1);
+});
+$('listBtn').addEventListener('click', async () => { await saveDraft(); showList(); });
+$('submitBtn').addEventListener('click', async () => {
+  showError('wizError', ''); $('wizOk').style.display = 'none';
+  try {
+    await saveDraft();
+    if (!current || !current.id) throw new Error('draft was not saved — check connection');
+    current = await api('/api/visits/' + current.id + '/submit', { method: 'POST', body: '{}' });
+    $('wizTitle').textContent = `Visit #${current.id} (submitted)`;
+    $('wizOk').textContent = 'Visit submitted. Fill Part C below when you have left the shop.';
+    $('wizOk').style.display = 'block';
+    renderPartC();
+  } catch (e) { showError('wizError', e.message); }
+});
+$('wrapupBtn').addEventListener('click', async () => {
+  showError('wizError', '');
+  try {
+    const c = readScope('c');
+    const body = Object.assign({}, c, {
+      part_c: c,
+      top_pain: c.top_pain || null, template_fit: c.template_fit || null, fit_score: c.fit_score || null,
+      interest_level: c.interest_level || null, pilot_status: c.pilot_status || null,
+      pilot_date: c.pilot_date || null, next_step: c.next_step || null, next_step_date: c.next_step_date || null,
+    });
+    current = await api('/api/visits/' + current.id + '/wrapup', { method: 'POST', body: JSON.stringify(body) });
+    $('wizTitle').textContent = `Visit #${current.id} (completed)`;
+    $('wizOk').textContent = 'Wrap-up saved — visit completed.';
+    $('wizOk').style.display = 'block';
+  } catch (e) { showError('wizError', e.message); }
+});
+$('logoutBtn').addEventListener('click', async () => {
+  await fetch('/api/logout', { method: 'POST' }).catch(() => {});
+  window.location.href = '/login';
+});
+
+/* Deep link: /feedback/<id> opens that visit directly. */
+(async function init() {
+  try {
+    me = await api('/api/whoami');
+    $('whoami').textContent = `${me.email} · ${me.role}`;
+  } catch { return; } // api() already redirected to /login on 401
+  const m = window.location.pathname.match(/^\/feedback\/(\d+)$/);
+  if (m) {
+    try { openWizard(await api('/api/visits/' + m[1])); return; }
+    catch (e) { showError('listError', e.message); }
+  }
+  showList();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+services:
+  pa-web:
+    build: .
+    container_name: pa-web
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "127.0.0.1:8095:8095"   # localhost only; Caddy proxies pa.plotfarms.com here
+    volumes:
+      - ./uploads:/data/uploads   # A10 sample photos; never served as public files
+    networks:
+      - supabase
+
+networks:
+  supabase:
+    external: true
+    name: supabase_default

@@ -1,0 +1,24 @@
+# secrets — real values live only in .env files on the server
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# dependencies / build output
+node_modules/
+npm-debug.log*
+
+# runtime data
+services/pa-web/uploads/
+*.log
+
+# generated per-deploy files
+*.generated.sql
+Caddyfile.generated
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

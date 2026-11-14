@@ -1,0 +1,18 @@
+# pa.plotfarms.com — PlotFarms PA home page + Business Feedback (pa-web).
+# Add this block to the VPS Caddyfile (back up the file first), then:
+#   caddy validate --config /etc/caddy/Caddyfile && systemctl reload caddy
+# HTTPS is issued automatically by Caddy, like the other *.plotfarms.com blocks.
+
+pa.plotfarms.com {
+	reverse_proxy 127.0.0.1:8095
+	encode gzip
+
+	log {
+		output file /var/log/caddy/pa.plotfarms.com.log
+	}
+}
+
+# Login throttling lives in the app itself (auth.js: 10 attempts per IP
+# per 5 minutes). If this Caddy build ever gains the rate-limit plugin,
+# a matching @login matcher + rate_limit block can be added inside the
+# site block — do not add it before `caddy validate` passes with it.
