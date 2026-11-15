@@ -1,5 +1,5 @@
 -- =====================================================================
--- PlotFarms PA — 021: Business Feedback (survey) schema + app registration
+-- PlotFarms PA — 021: Personal Assistant (survey) schema + app registration
 -- AI-DLC Gate 4 build, 2026-11-14. Plan: docs/design/PA-Business-Feedback-Form-Plan.md
 -- Target: the existing self-hosted Postgres (db.plotfarms.com stack).
 -- Pattern: one DB, multiple schemas — one schema per app
@@ -205,7 +205,7 @@ update survey.org_settings
 -- can reference it (foreign key). domain/admin_role_code columns come
 -- from 013 (two-tier admin).
 insert into platform.apps (app_code, display_name, schema_name)
-values ('survey', 'Business Feedback', 'survey')
+values ('survey', 'Personal Assistant', 'survey')
 on conflict (app_code) do nothing;
 
 update platform.apps
@@ -247,6 +247,9 @@ end $$;
 grant usage on schema platform to survey_app;
 grant select on platform.user_app_access to survey_app;
 grant select on platform.apps to survey_app;
+-- platform.user_app_access has RLS enabled; without BYPASSRLS the role
+-- sees 0 rows (same fix as textiles_app, confirmed 2026-11-15).
+alter role survey_app bypassrls;
 
 -- ======================= VERIFY (results appear below) =======================
 -- The app row must exist, and the privilege checks must all return true.
