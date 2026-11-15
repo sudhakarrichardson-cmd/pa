@@ -178,6 +178,13 @@ function createRouter(store) {
     if (!user) {
       const reg = session.context.reg || {};
       const body = String(text || '').trim();
+      if (parsed.kind === 'cancel' && reg.step) {
+        session.context = {};
+        session.stage = 'registering';
+        await save(key, session);
+        replies.push('Registration cancelled. Message me any time to start again.');
+        return { replies };
+      }
       if (parsed.kind === 'greeting' || !reg.step) {
         session.stage = 'registering';
         session.context = { reg: { step: 'name' } };
@@ -439,7 +446,25 @@ function createRouter(store) {
     return { replies };
   }
 
-  return { handleMessage };
+  // For channel layers that share one bot between two audiences
+  // (telegram.js: employees linked to the survey app + PA users).
+  // True when this message belongs to the PA consumer flow: a fresh
+  // PA request or status question, or any reply inside a PA flow this
+  // chat already started (registration, quote confirmation, slot
+  // pick). Everything else stays with the other audience's handler.
+  async function shouldHandle({ channel, chatRef, text }) {
+    const parsed = parseRequest(text);
+    if (parsed.kind === 'request' || parsed.kind === 'status') return true;
+    const session = await store.getSession(`${channel}:${chatRef}`)
+      .catch(() => null);
+    if (!session) return false;
+    if (session.stage === 'awaiting_confirm' ||
+        session.stage === 'awaiting_slot') return true;
+    return session.stage === 'registering' &&
+      !!(session.context && session.context.reg);
+  }
+
+  return { handleMessage, shouldHandle };
 }
 
 // ---------------------------------------------------------------------

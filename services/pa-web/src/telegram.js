@@ -314,6 +314,23 @@ module.exports = function registerTelegram(pool, auth, paRouter) {
       if (cmd === '/dashboard')  { await handleDashboard(chatId, user);  return; }
       if (cmd === '/unlink')     { await handleUnlink(chatId);           return; }
 
+      // A linked employee can also be a PA user — the owner is the
+      // first test user, and his Telegram IS linked as an employee.
+      // PA consumer requests, and replies inside a PA flow this chat
+      // started, go to the PA router; visit questions stay with the
+      // employee bot below. (Without this split, a linked account
+      // asking for "2 kg mirchi" only ever reached the survey AI,
+      // which knows visits data and nothing about ordering.)
+      if (paRouter && await paRouter.shouldHandle({
+        channel: 'telegram', chatRef: String(chatId), text,
+      })) {
+        const out = await paRouter.handleMessage({
+          channel: 'telegram', chatRef: String(chatId), text,
+        });
+        for (const r of (out.replies || [])) await sendPlain(chatId, r);
+        return;
+      }
+
       // Freeform → AI
       await handleAI(chatId, user, text);
     } catch (e) {
