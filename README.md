@@ -37,6 +37,20 @@ on 2026-11-14 — see `docs/design/`.
   the questionnaire — business type first (it selects the Part B module),
   Part A in steps, A10 samples with photo upload, review + submit, then
   Part C wrap-up as a separate post-visit step. Drafts auto-save.
+- **PA messaging layer** (consumer Personal Assistant, migration 023;
+  design + gap analysis in `docs/design/PA-Messaging-Layer.md`): the
+  public Telegram bot @ypa25bot also serves PA users — a chat that is
+  not linked to an employee login goes to the PA router (`src/router.js`),
+  which registers the user once (name, address, pincode), understands
+  the request, and asks registered apps (Textiles, VegiBot, Scheduler,
+  HelpLawyer — `pa.app_registry`) for basic information only:
+  `check_availability`, then `place_order` after the user confirms,
+  and `order_status`. Quotes from all stores serving the user's
+  pincode are compared; the vendor sends the invoice and payment
+  instructions; PA keeps only a platform-level order copy
+  (`pa.orders`). Other channels reach the same router through
+  `POST /api/pa/inbound` from the transport-only gateways. The
+  registry is managed at `/api/pa/apps` (admin; list for managers).
 - **Office dashboard + CSV export** (manager/owner): the Results Tracker
   summary counts live, and a CSV with the tracker's Visits columns.
 
@@ -44,7 +58,9 @@ on 2026-11-14 — see `docs/design/`.
 
 ```
 database/migrations/    021-survey-schema.sql — survey schema, roles, HR tables,
-                        app registration
+                        app registration; 022 — employee Telegram links;
+                        023-pa-messaging.sql — schema `pa` (PA users, app
+                        registry, sessions, order book, request log)
 deploy/caddy/           Caddyfile.template — pa.plotfarms.com block
 docs/design/            Gate 1 plan + Gate 2 architecture (with STRIDE table)
 docs/DEPLOY.md          server deployment, start to finish
@@ -53,8 +69,11 @@ services/pa-web/        the app (plain Node, no framework) — src/server.js rou
                         src/auth.js logins, src/visits.js survey API (sole DB
                         writer for schema survey), src/dashboard.js reports,
                         src/staff.js employee profiles + logins (logins via
-                        platform-admin), src/offers.js offer letters (PDF)
+                        platform-admin), src/offers.js offer letters (PDF),
+                        src/router.js PA messaging router (consumer chats),
+                        src/apps.js app registry + basic-interface client
 tests/run.sh            Gate 5 starter checks (boot + login gate)
+tests/pa-messaging.test.js  router flow tests (in-memory store, no DB)
 ```
 
 ## Rules that shape the code

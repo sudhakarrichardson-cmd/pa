@@ -19,6 +19,9 @@ changing behaviour.
 | `services/pa-web/src/offers.js` | Offer letters (`survey.offer_letters`, PDF via pdfkit) + company details (`survey.org_settings`) |
 | `services/pa-web/src/staff.html` | Staff & HR page — served only to roles with `manage_users` / `offer_letters`; never put this markup in `feedback.html` |
 | `services/pa-web/src/dashboard.js` | Manager summary counts + Results-Tracker CSV export |
+| `services/pa-web/src/router.js` | PA messaging router (consumer chats): registration, rule parser, quote → confirm → order, booking/query modes, status; sessions in `pa.sessions`. Exports `createRouter(store)` for tests |
+| `services/pa-web/src/apps.js` | App registry (`pa.app_registry`) + basic-interface client — the ONLY way PA talks to domain apps: `check_availability` / `place_order` / `order_status` over HTTP with a per-app secret whose NAME (never value) is in the registry |
+| `services/pa-web/src/telegram.js` | Telegram webhook: employee bot for linked logins; unlinked chats are handed to the router (public PA users) |
 | `services/pa-web/src/home.html` | Public PA home page — must never contain survey content |
 | `services/pa-web/src/login.html` | Employee login page |
 | `services/pa-web/src/feedback.html` | Survey wizard + my visits + manager dashboard (served only after login) |
@@ -63,6 +66,14 @@ changing behaviour.
 - Uploads: image types are sniffed from file bytes, size-capped, stored
   under generated names in `UPLOAD_DIR`, and served only through
   `GET /api/attachments/:id` after an ownership/role check.
+- Messaging layer (schema `pa`, migration 023): the router writes only
+  schema `pa`; it must never read or write a domain app's database.
+  `check_availability` creates nothing anywhere; `place_order` is sent
+  only after the user confirms the quote in the chat, always with the
+  session's `pa_request_id` (idempotency key). App secrets live only in
+  `.env` — the registry stores the env var's name. Consumer replies go
+  out as plain text (no HTML parse mode). Design + gaps:
+  `docs/design/PA-Messaging-Layer.md`.
 
 ## Secrets and private data
 
