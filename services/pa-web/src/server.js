@@ -31,6 +31,7 @@ const registerVisits = require('./visits');
 const registerDashboard = require('./dashboard');
 const registerStaff = require('./staff');
 const registerOffers = require('./offers');
+const registerTelegram = require('./telegram');
 
 const PORT = parseInt(process.env.PORT || '8095', 10);
 
@@ -53,6 +54,7 @@ const visitsHandler = registerVisits(pool, auth);
 const dashboardHandler = registerDashboard(pool);
 const staffHandler = registerStaff(pool, auth);
 const offersHandler = registerOffers(pool);
+const telegramHandler = registerTelegram(pool, auth);
 
 // Who does survey work, and who gets the Staff & HR page.
 const canVisits = user => auth.can(user, 'fill_visits') || auth.can(user, 'view_all_visits');
@@ -71,6 +73,7 @@ const PAGES = {
   login: fs.readFileSync(path.join(__dirname, 'login.html'), 'utf8'),
   feedback: fs.readFileSync(path.join(__dirname, 'feedback.html'), 'utf8'),
   staff: fs.readFileSync(path.join(__dirname, 'staff.html'), 'utf8'),
+  link: fs.readFileSync(path.join(__dirname, 'link.html'), 'utf8'),
 };
 
 function sendHtml(res, code, html, extraHeaders = {}) {
@@ -170,6 +173,22 @@ const server = http.createServer(async (req, res) => {
       }
       json(res, 404, { error: 'not found' });
       return;
+    }
+
+    /* ---------------- Telegram bot ---------------- */
+    // Webhook is public (Telegram pushes here); link routes require login.
+    if (req.method === 'POST' && p === '/api/telegram/webhook') {
+      await telegramHandler.handleWebhook(req, res); return;
+    }
+    if (req.method === 'GET' && p === '/link') {
+      const user = await auth.requireAuth(req, res);
+      if (!user) { res.writeHead(302, { Location: '/login' }); res.end(); return; }
+      sendHtml(res, 200, PAGES.link, { 'Cache-Control': 'no-store' }); return;
+    }
+    if (req.method === 'POST' && p === '/api/telegram/link') {
+      const user = await auth.requireAuth(req, res);
+      if (!user) { json(res, 401, { error: 'login required' }); return; }
+      await telegramHandler.handleLinkConfirm(req, res, user); return;
     }
 
     sendHtml(res, 404, '<!doctype html><title>Not found</title><p>Not found.</p>');

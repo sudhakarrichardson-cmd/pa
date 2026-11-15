@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Link Telegram — PA</title>
+<style>
+  :root {
+    --bg:#0d0b08; --panel:#1a1710; --line:#2e2b22;
+    --text:#f0ead6; --muted:#8a8470; --gold:#c8a84b; --gold2:#e8c86a;
+    --red:#c0392b; --green:#27ae60;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:system-ui,sans-serif;
+         font-size:16px; min-height:100vh; display:flex; flex-direction:column; }
+  header { padding:14px 16px; border-bottom:1px solid var(--line);
+           display:flex; align-items:center; gap:12px; }
+  header a { color:var(--gold); text-decoration:none; font-size:14px; }
+  h1 { font-size:1.1rem; color:var(--gold2); }
+  main { flex:1; display:flex; justify-content:center; align-items:center; padding:24px 16px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:16px;
+          padding:28px 24px; max-width:380px; width:100%; }
+  .card h2 { font-size:1.15rem; margin-bottom:8px; color:var(--gold2); }
+  .card p  { color:var(--muted); font-size:14px; margin-bottom:20px; line-height:1.5; }
+  .steps   { margin-bottom:22px; padding-left:18px; color:var(--muted); font-size:14px; line-height:1.8; }
+  label    { display:block; font-size:14px; color:var(--muted); margin-bottom:6px; }
+  input    { width:100%; padding:11px 13px; background:var(--bg); border:1px solid var(--line);
+             border-radius:8px; color:var(--text); font-size:1.2rem; letter-spacing:.2em;
+             text-align:center; outline:none; }
+  input:focus { border-color:var(--gold); }
+  button   { width:100%; margin-top:14px; padding:12px; background:var(--gold);
+             color:#0d0b08; font-weight:700; font-size:15px; border:none;
+             border-radius:8px; cursor:pointer; }
+  button:disabled { opacity:.5; cursor:default; }
+  .msg     { margin-top:14px; font-size:14px; text-align:center; min-height:20px; }
+  .msg.ok  { color:var(--green); }
+  .msg.err { color:var(--red); }
+</style>
+</head>
+<body>
+<header>
+  <h1>PA — Link Telegram</h1>
+  <a href="/feedback">← Back</a>
+</header>
+<main>
+  <div class="card">
+    <h2>🔗 Connect your Telegram account</h2>
+    <p>Send <b>/link</b> to <b>@ypa25bot</b> on Telegram to get a 6-digit code, then enter it below.</p>
+    <ol class="steps">
+      <li>Open Telegram → search <b>@ypa25bot</b></li>
+      <li>Send <b>/link</b></li>
+      <li>Enter the 6-digit code here</li>
+    </ol>
+    <label for="otp">6-digit code</label>
+    <input id="otp" type="text" inputmode="numeric" pattern="[0-9]{6}"
+           maxlength="6" placeholder="000000" autocomplete="off">
+    <button id="btn">Link Account</button>
+    <div id="msg" class="msg"></div>
+  </div>
+</main>
+<script>
+const btn = document.getElementById('btn');
+const otp = document.getElementById('otp');
+const msg = document.getElementById('msg');
+
+// Pre-fill code from URL ?code=XXXXXX
+const urlCode = new URLSearchParams(location.search).get('code');
+if (urlCode) otp.value = urlCode;
+
+btn.addEventListener('click', async () => {
+  const code = otp.value.trim();
+  if (!/^\d{6}$/.test(code)) { showMsg('Enter a 6-digit code.', false); return; }
+  btn.disabled = true;
+  msg.textContent = '';
+  try {
+    const r = await fetch('/api/telegram/link', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ otp: code }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (r.ok) {
+      showMsg('✅ Telegram linked! Check your bot chat.', true);
+      btn.textContent = 'Linked';
+    } else {
+      showMsg(d.error || 'Failed. Try again.', false);
+      btn.disabled = false;
+    }
+  } catch {
+    showMsg('Network error. Try again.', false);
+    btn.disabled = false;
+  }
+});
+
+function showMsg(text, ok) {
+  msg.textContent = text;
+  msg.className = 'msg ' + (ok ? 'ok' : 'err');
+}
+</script>
+</body>
+</html>
