@@ -373,8 +373,23 @@ module.exports = function registerTelegram(pool, auth, paRouter) {
     auth.json(res, 200, { ok: true });
   }
 
+  // Send a text message to a PA user by their pa.users.id.
+  // Returns { ok: true } or { ok: false, error } — does not throw.
+  async function sendToUser(paUserId, text) {
+    try {
+      const r = await q(
+        'SELECT telegram_chat_id FROM pa.users WHERE id=$1 AND active=true', [paUserId]);
+      const chatId = r.rows[0]?.telegram_chat_id;
+      if (!chatId) return { ok: false, error: 'user has no telegram' };
+      await sendPlain(chatId, text);
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  }
+
   // Register the webhook with Telegram on startup
   setupWebhook().catch(e => console.error('telegram setup error:', e.message));
 
-  return { handleWebhook, handleLinkConfirm };
+  return { handleWebhook, handleLinkConfirm, sendToUser };
 };

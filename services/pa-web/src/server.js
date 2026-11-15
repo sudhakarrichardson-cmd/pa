@@ -189,6 +189,41 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    /* ------------ PA invoice relay (vegibot → PA customer) ---------------
+     * VegiBot calls this after the owner approves a PA-channel order. We
+     * look up the PA user's Telegram chat and send them a bill summary.
+     * Authenticated with the same per-app secret PA uses to call vegibot. */
+    if (req.method === 'POST' && p === '/api/pa/relay/invoice') {
+      const expected = process.env.PA_APP_SECRET_VEGIBOT || '';
+      if (!expected) { json(res, 503, { error: 'relay not configured' }); return; }
+      if ((req.headers['x-pa-secret'] || '') !== expected) {
+        json(res, 401, { error: 'unauthorized' }); return;
+      }
+      let body;
+      try { body = await auth.readBody(req); }
+      catch { json(res, 400, { error: 'bad request' }); return; }
+      const { user_ref, invoice_no, amount, store_name } = body || {};
+      if (!user_ref || !invoice_no) {
+        json(res, 400, { error: 'user_ref and invoice_no are required' }); return;
+      }
+      const paUserId = parseInt(String(user_ref).replace(/^pa-user-/, ''), 10);
+      if (!paUserId) { json(res, 400, { error: 'invalid user_ref' }); return; }
+      const amt = Number(amount || 0);
+      const amtStr = amt > 0 ? `₹${amt.toFixed(2)}` : '';
+      const msg = [
+        `🧾 Your order has been approved!`,
+        ``,
+        `Invoice: ${invoice_no}`,
+        amtStr ? `Amount: ${amtStr}` : null,
+        ``,
+        `The store will contact you to confirm delivery and payment.`,
+        store_name ? `— ${store_name}` : null,
+      ].filter(l => l !== null).join('\n');
+      const result = await telegramHandler.sendToUser(paUserId, msg);
+      json(res, result.ok ? 200 : 422, result);
+      return;
+    }
+
     /* ---------------- gated API ---------------- */
     if (p.startsWith('/api/')) {
       const user = await auth.requireAuth(req, res);

@@ -99,6 +99,9 @@ if [ "$PAAPPS" = 401 ]; then pass "GET /api/pa/apps logged out = 401"; else fail
 INB=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 -X POST "$BASE/api/pa/inbound" \
   -H 'Content-Type: application/json' -d '{"channel":"whatsapp","user_ref":"100","text":"hi"}')
 if [ "$INB" = 503 ]; then pass "POST /api/pa/inbound unconfigured = 503 (fails closed)"; else fail "POST /api/pa/inbound unconfigured = $INB (want 503)"; fi
+RELAY=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 -X POST "$BASE/api/pa/relay/invoice" \
+  -H 'Content-Type: application/json' -d '{"user_ref":"pa-user-1","invoice_no":"INV-001"}')
+if [ "$RELAY" = 503 ]; then pass "POST /api/pa/relay/invoice unconfigured = 503 (fails closed)"; else fail "POST /api/pa/relay/invoice unconfigured = $RELAY (want 503)"; fi
 
 # 5. login fails closed when auth/DB are unreachable
 LOGIN=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 -X POST "$BASE/api/login" \
