@@ -66,6 +66,19 @@ spec (PA may only request `check_availability`, `place_order`,
 - **DoS** — app calls time out at 8 s and degrade to a plain
   "try again shortly" reply; sessions/quotes are per-chat rows.
 
+## Correction — 2026-11-15, from the owner's first test
+
+The owner tested the bot from his own Telegram and got the employee
+AI's answer ("the data contains only visits and dashboard counts").
+Cause: his chat is linked as an employee, and the first version of
+this change sent *every* linked chat to the employee bot — a linked
+account could never reach the consumer flow. Fix: routing is now by
+intent for linked chats. Employee commands are unchanged; free text
+that the rule parser reads as a PA request (or a status question), and
+any reply inside a PA flow the chat already started (registration,
+quote confirmation, slot pick), goes to the router
+(`router.shouldHandle`). Visit questions still go to the employee AI.
+
 ## Still pending (not in this change)
 
 - **App-side adapters** in the four app repos (Textiles stock read
