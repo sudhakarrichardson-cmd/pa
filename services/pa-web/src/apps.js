@@ -78,6 +78,9 @@ function createApps(deps) {
     return {
       name: user.name, phone: user.phone || null,
       address: user.address, pincode: user.pincode,
+      // Stable PA identity: apps key their PA customers on it when no phone
+      // is known (VegiBot stores it as phone "pa:pa-user-<id>").
+      user_ref: `pa-user-${user.id}`,
     };
   }
 
