@@ -92,6 +92,14 @@ else
   pass "public pages contain no Staff & HR markup"
 fi
 
+# 4b. messaging layer routes: registry API is gated; the gateway
+# inbound fails closed (503) while PA_INBOUND_SECRET is not configured.
+PAAPPS=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "$BASE/api/pa/apps")
+if [ "$PAAPPS" = 401 ]; then pass "GET /api/pa/apps logged out = 401"; else fail "GET /api/pa/apps logged out = $PAAPPS (want 401)"; fi
+INB=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 -X POST "$BASE/api/pa/inbound" \
+  -H 'Content-Type: application/json' -d '{"channel":"whatsapp","user_ref":"100","text":"hi"}')
+if [ "$INB" = 503 ]; then pass "POST /api/pa/inbound unconfigured = 503 (fails closed)"; else fail "POST /api/pa/inbound unconfigured = $INB (want 503)"; fi
+
 # 5. login fails closed when auth/DB are unreachable
 LOGIN=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 -X POST "$BASE/api/login" \
   -H 'Content-Type: application/json' -d '{"email":"nobody@example.com","password":"wrong-password"}')
