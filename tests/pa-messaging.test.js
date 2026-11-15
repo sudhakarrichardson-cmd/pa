@@ -172,6 +172,19 @@ async function run() {
   check('confirm with nothing pending is answered plainly', () =>
     assert.match(last(out), /Nothing is waiting/));
 
+  // ---- shared-bot split (linked employee who is also a PA user) ----
+  const sh = text => router.shouldHandle({ channel: 'telegram', chatRef: '111', text });
+  assert.equal(await sh('2 kg mirchi'), true);
+  console.log('PASS  shouldHandle: PA request -> router');
+  assert.equal(await sh('how many visits did I make this week'), false);
+  console.log('PASS  shouldHandle: employee visit question -> stays with employee bot');
+  out = await say('2 kg mirchi'); // opens a pending quote
+  assert.equal(await sh('yes'), true);
+  console.log('PASS  shouldHandle: reply inside a pending PA flow -> router');
+  out = await say('no');
+  check('pending quote cancelled cleanly', () =>
+    assert.match(last(out), /Cancelled/));
+
   console.log(failures ? 'PA MESSAGING TESTS FAILED' : 'ALL PA MESSAGING TESTS PASSED');
   process.exit(failures ? 1 : 0);
 }
