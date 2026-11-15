@@ -135,6 +135,21 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    /* ---------------- Telegram bot (public webhook) ---------------- */
+    if (req.method === 'POST' && p === '/api/telegram/webhook') {
+      await telegramHandler.handleWebhook(req, res); return;
+    }
+    if (req.method === 'GET' && p === '/link') {
+      const user = await auth.requireAuth(req, res);
+      if (!user) { res.writeHead(302, { Location: '/login' }); res.end(); return; }
+      sendHtml(res, 200, PAGES.link, { 'Cache-Control': 'no-store' }); return;
+    }
+    if (req.method === 'POST' && p === '/api/telegram/link') {
+      const user = await auth.requireAuth(req, res);
+      if (!user) { json(res, 401, { error: 'login required' }); return; }
+      await telegramHandler.handleLinkConfirm(req, res, user); return;
+    }
+
     /* ---------------- gated API ---------------- */
     if (p.startsWith('/api/')) {
       const user = await auth.requireAuth(req, res);
@@ -173,22 +188,6 @@ const server = http.createServer(async (req, res) => {
       }
       json(res, 404, { error: 'not found' });
       return;
-    }
-
-    /* ---------------- Telegram bot ---------------- */
-    // Webhook is public (Telegram pushes here); link routes require login.
-    if (req.method === 'POST' && p === '/api/telegram/webhook') {
-      await telegramHandler.handleWebhook(req, res); return;
-    }
-    if (req.method === 'GET' && p === '/link') {
-      const user = await auth.requireAuth(req, res);
-      if (!user) { res.writeHead(302, { Location: '/login' }); res.end(); return; }
-      sendHtml(res, 200, PAGES.link, { 'Cache-Control': 'no-store' }); return;
-    }
-    if (req.method === 'POST' && p === '/api/telegram/link') {
-      const user = await auth.requireAuth(req, res);
-      if (!user) { json(res, 401, { error: 'login required' }); return; }
-      await telegramHandler.handleLinkConfirm(req, res, user); return;
     }
 
     sendHtml(res, 404, '<!doctype html><title>Not found</title><p>Not found.</p>');
