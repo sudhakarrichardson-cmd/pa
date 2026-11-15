@@ -17,7 +17,7 @@ run on the server as root. Read each command's output before moving on.
 | Self-hosted Supabase stack up (network `supabase_default`, DB container reachable as `db:5433` on that network) | `docker ps --format '{{.Names}}'` |
 | Migrations up to 020 already applied | Studio → database → migrations, or check with the other apps working |
 | Port 8095 free on the host | `ss -ltn \| grep 8095` (must print nothing) |
-| platform-admin running **with per-app roles and the HR rule** (the textile-repo change: `rolesForApp` reads `<schema>.role_capabilities`, and a role with `manage_users` may manage people but never the app admin), container name `platform-admin` on `supabase_default` | `docker ps`; after pulling the textile repo: `cd services/platform-admin && docker compose up -d --build` |
+| platform-admin running **with per-app roles and the HR rule** (`rolesForApp` reads `<schema>.role_capabilities`, and a role with `manage_users` may manage people but never the app admin), container name `platform-admin` on `supabase_default` | `docker ps`; repo: github.com/sudhakarrichardson-cmd/platform-admin — `cd services/platform-admin && docker compose up -d --build` |
 
 ## 1. DNS
 
