@@ -63,6 +63,28 @@ show the app row, all four privilege checks `true`, and eight roles
 (intern, trainee, engineer, sr_engineer, manager, branch_manager, hr,
 owner).
 
+## 4b. Run migrations 022 and 023 (Telegram + messaging layer)
+
+Paste `database/migrations/022-telegram-sessions.sql` and then
+`database/migrations/023-pa-messaging.sql` into the Studio SQL editor
+and run each. 022 creates the employee Telegram link tables; 023
+creates schema `pa` (PA users, app registry, sessions, order book,
+request log) and seeds the four POC app registrations as `pending`
+with empty endpoints. The VERIFY selects must show the privilege
+checks `true`.
+
+To activate the messaging layer after pa-web is up:
+
+1. In `services/pa-web/.env` set `PA_INBOUND_SECRET` (generate on the
+   server) and the per-app `PA_APP_SECRET_*` values, and give the same
+   `PA_INBOUND_SECRET` to the gateway that will POST to
+   `/api/pa/inbound` (wa-gateway / telegram-gateway config).
+2. For each app whose adapter is deployed, set its registry row's
+   `endpoint_url` (via `POST /api/pa/apps` as admin, or SQL), then run
+   the activation test `POST /api/pa/apps/<app_id>/test` — a correct
+   `check_availability` answer flips the row to `active` and PA starts
+   routing to it. Set `service_pincodes` per store instance as needed.
+
 ## 5. Create `services/pa-web/.env`
 
 Start from `.env.example` and fill it **on the server**:
