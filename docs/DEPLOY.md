@@ -151,7 +151,7 @@ with it — without the key the encrypted ID / bank numbers in a restored
 database cannot be read. Add the uploads folder to the same backup run:
 
 ```
-/root/pa/services/pa-web/uploads/
+/opt/pa/services/pa-web/uploads/
 ```
 
 ## 10. Verify checklist
