@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Business Feedback — PlotFarms PA</title>
+<link rel="icon" type="image/png" href="/assets/favicon.png">
 <style>
   :root { --bg:#0d0b08; --panel:#171310; --panel2:#1f1913; --gold:#c9a227; --gold2:#e8c95a; --text:#f3ead8; --muted:#b8ab90; --line:#33291a; --err:#e08a8a; --ok:#9fd49a; }
   * { box-sizing:border-box; margin:0; padding:0; }
@@ -11,6 +12,8 @@
   .wrap { max-width:860px; margin:0 auto; padding:0 16px 60px; }
   header { border-bottom:1px solid var(--line); background:rgba(13,11,8,.97); position:sticky; top:0; z-index:10; }
   .nav { max-width:860px; margin:0 auto; padding:12px 16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .brandrow { display:flex; align-items:center; gap:11px; text-decoration:none; }
+  .brandrow .mark { height:26px; width:auto; border-radius:6px; display:block; }
   .brand { font-family:Georgia,serif; font-size:20px; color:var(--gold2); }
   .brand small { display:block; font-size:10px; color:var(--muted); letter-spacing:2px; }
   .nav .sp { margin-left:auto; display:flex; gap:10px; align-items:center; font-size:13.5px; color:var(--muted); flex-wrap:wrap; }
@@ -63,8 +66,9 @@
 <body>
 <header>
   <div class="nav">
-    <div class="brand">PlotFarms<small>BUSINESS FEEDBACK</small></div>
+    <div class="brandrow"><img class="mark" src="/assets/logo-mark.webp" alt="" width="53" height="26"><div class="brand">PlotFarms<small>BUSINESS FEEDBACK</small></div></div>
     <div class="sp">
+      <a href="/staff" id="staffLink" class="hidden">Staff &amp; HR</a>
       <span id="whoami"></span>
       <button class="ghost" id="logoutBtn" type="button">Sign out</button>
     </div>
@@ -77,6 +81,7 @@
     <h1>Business Feedback</h1>
     <p class="sub">Field survey visits. Drafts save automatically — a visit is only final after Submit, and Part C is filled after leaving the shop.</p>
     <div class="error" id="listError"></div>
+    <div class="okmsg" id="listNotice"></div>
     <p style="margin-bottom:16px;"><button id="newVisitBtn" type="button">+ New visit</button></p>
 
     <div class="card">
@@ -404,7 +409,11 @@ let me = null;
 let current = null;      // visit being edited (object from the API)
 let step = 0;
 let saveTimer = null;
+let retryTimer = null;
 let saving = false;
+let saveAgain = false;   // an edit arrived while a save was running
+let dirty = false;       // answers on this phone not yet confirmed by the server
+let editSeq = 0;         // bumps on every edit
 
 const STEPS = [
   { title: 'Start', sections: [] },                                   // business type + date (custom)
@@ -476,55 +485,137 @@ function currentType() {
   return (current && current.business_type) || null;
 }
 
-function buildPayload() {
-  const a = Object.assign({}, current && current.part_a, readScope('a'));
-  const type = currentType();
+/* The answers on screen are copied into `current` BEFORE anything else
+ * happens (save, step change, exit), so they survive a failed or slow
+ * save. `current` is the single source of truth for the payload. */
+function captureLocal() {
+  if (!current) return;
+  const a = Object.assign({}, current.part_a, readScope('a'));
+  if (a.orders_weekday || a.orders_weekend) {
+    a.orders_per_day = `Weekday ${a.orders_weekday || '-'} · Weekend ${a.orders_weekend || '-'}`;
+  } else { delete a.orders_per_day; }
+  current.part_a = a;
+  if (step === 0) {
+    const el = document.querySelector('input[name="btype"]:checked');
+    if (el) current.business_type = el.value;
+    const d = $('visit_date');
+    if (d && d.value) current.visit_date_local = d.value;
+  }
   // Only the Part B step renders scope-'b' inputs; reading it elsewhere
   // would return {} and wipe the stored module answers.
-  const bmod = (step === 7 && type && PART_B[type]) ? readScope('b') : null;
-  const partB = Object.assign({}, current && current.part_b);
-  if (type && bmod) partB[type] = bmod;
-  const orders = (a.orders_weekday || a.orders_weekend)
-    ? `Weekday ${a.orders_weekday || '-'} · Weekend ${a.orders_weekend || '-'}` : null;
-  if (orders) a.orders_per_day = orders;
-  const dateEl = $('visit_date');
+  const type = current.business_type;
+  if (step === 7 && type && PART_B[type] && document.querySelector('[data-scope="b"]')) {
+    current.part_b = Object.assign({}, current.part_b, { [type]: readScope('b') });
+  }
+}
+
+function buildPayload() {
+  captureLocal();
+  const a = current.part_a || {};
   return {
-    business_type: type,
+    business_type: currentType(),
     business_name: a.business_name || null,
     town: a.town || null,
     owner_name: a.owner_name || null,
     owner_whatsapp: a.owner_whatsapp || null,
-    visit_date: dateEl ? dateEl.value : (current && current.visit_date) || null,
-    orders_per_day: orders,
-    missed_enquiries_per_week: a.missed_per_week === '' ? null : a.missed_per_week,
+    visit_date: current.visit_date_local || null,
+    orders_per_day: a.orders_per_day || null,
+    missed_enquiries_per_week: (a.missed_per_week === '' || a.missed_per_week == null) ? null : a.missed_per_week,
     fee_comfort: a.fee_comfort || null,
     part_a: a,
-    part_b: partB,
+    part_b: current.part_b || {},
   };
+}
+
+/* ---------------- unsent-answers backup (this phone only) ----------------
+ * Every edit to a draft is also written to localStorage until the server
+ * confirms the save, so a dropped connection, a closed tab or an expired
+ * login cannot lose the visit. The copy is removed once the save succeeds. */
+const BK = 'pa_draft_';
+const bkKey = id => BK + (id || 'new');
+function backupLocal() {
+  if (!current || current.status !== 'draft' || !me) return;
+  try {
+    localStorage.setItem(bkKey(current.id), JSON.stringify({
+      id: current.id || null, email: me.email, at: Date.now(),
+      business_type: current.business_type || null, visit_date_local: current.visit_date_local || null,
+      part_a: current.part_a || {}, part_b: current.part_b || {},
+    }));
+  } catch { /* storage unavailable — the in-memory copy still protects step changes */ }
+}
+function clearBackup(id) { try { localStorage.removeItem(bkKey(id)); } catch { /* ignore */ } }
+function readBackup(id) {
+  try {
+    const b = JSON.parse(localStorage.getItem(bkKey(id)) || 'null');
+    return b && me && b.email === me.email ? b : null;
+  } catch { return null; }
+}
+function pendingBackups() {
+  const out = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key || !key.startsWith(BK)) continue;
+      const b = JSON.parse(localStorage.getItem(key) || 'null');
+      if (b && me && b.email === me.email) out.push(b);
+    }
+  } catch { /* ignore */ }
+  return out;
 }
 
 async function saveDraft() {
   if (!current || current.status === 'completed') return;
-  if (saving) return;
-  saving = true;
+  captureLocal();
+  if (saving) { saveAgain = true; return; }       // picked up when the running save ends
+  if (current.id && !dirty) return;
+  clearTimeout(saveTimer); clearTimeout(retryTimer);
+  saving = true; saveAgain = false;
+  const target = current;
+  const sentSeq = editSeq;
+  let retry = false;
   $('saveState').textContent = 'Saving…';
   try {
     const payload = buildPayload();
-    if (!current.id) {
-      current = await api('/api/visits', { method: 'POST', body: JSON.stringify(payload) });
-      $('wizTitle').textContent = 'Visit #' + current.id + ' (draft)';
-    } else {
-      const updated = await api('/api/visits/' + current.id, { method: 'PUT', body: JSON.stringify(payload) });
-      current = Object.assign({}, current, updated);
+    const wasNew = !target.id;
+    const saved = await api(wasNew ? '/api/visits' : '/api/visits/' + target.id,
+      { method: wasNew ? 'POST' : 'PUT', body: JSON.stringify(payload) });
+    // Answers typed while the request was in flight are newer than the
+    // server's copy — keep them and send again.
+    const changed = editSeq !== sentSeq;
+    const local = { part_a: target.part_a, part_b: target.part_b, business_type: target.business_type };
+    Object.assign(target, saved);
+    if (changed) Object.assign(target, local);
+    if (wasNew) {
+      clearBackup(null);
+      if (current === target) $('wizTitle').textContent = 'Visit #' + target.id + ' (draft)';
     }
-    $('saveState').textContent = 'Draft saved ' + new Date().toLocaleTimeString();
+    if (changed) { if (current === target) backupLocal(); saveAgain = true; }
+    else {
+      dirty = false;
+      clearBackup(target.id);
+      $('saveState').textContent = 'Draft saved ' + new Date().toLocaleTimeString();
+    }
   } catch (e) {
-    $('saveState').textContent = 'Save failed — keep this tab open and check connection';
-  } finally { saving = false; }
+    retry = target.status === 'draft' && (!e.status || e.status >= 500);
+    $('saveState').textContent = retry
+      ? 'Not sent yet — your answers are kept on this phone and will be sent when the connection is back'
+      : 'Save failed — ' + e.message;
+  } finally {
+    saving = false;
+    if (current === target) {
+      if (saveAgain) saveTimer = setTimeout(saveDraft, 300);
+      else if (retry) retryTimer = setTimeout(saveDraft, 5000);
+    }
+  }
 }
 
 function scheduleSave() {
-  if (!current || current.status !== 'draft') return;
+  if (!current || current.status === 'completed') return;
+  captureLocal();
+  editSeq += 1;
+  dirty = true;
+  if (current.status !== 'draft') return;
+  backupLocal();
   $('saveState').textContent = 'Unsaved changes…';
   clearTimeout(saveTimer);
   saveTimer = setTimeout(saveDraft, 1200);
@@ -542,7 +633,7 @@ function renderStep() {
     html = '<h2 style="margin-top:0;">Business type</h2><div class="types">' + TYPES.map(([code, label]) =>
       `<label data-type="${code}" class="${type === code ? 'sel' : ''}"><input type="radio" name="btype" value="${code}" ${type === code ? 'checked' : ''}> ${esc(label)}</label>`).join('') +
       '</div>' +
-      `<label class="flabel" for="visit_date">Visit date</label><input type="date" id="visit_date" value="${esc((current && current.visit_date ? String(current.visit_date).slice(0, 10) : '') || new Date().toISOString().slice(0, 10))}">` +
+      `<label class="flabel" for="visit_date">Visit date</label><input type="date" id="visit_date" value="${esc((current && current.visit_date_local) || (current && current.visit_date ? String(current.visit_date).slice(0, 10) : '') || new Date().toISOString().slice(0, 10))}">` +
       '<p class="sub" style="margin-top:14px;">The type decides which Part B module appears later. Everything else (Part A) is asked for every business.</p>';
   } else if (step >= 1 && step <= 5) {
     html = sectionsHtml(STEPS[step].sections, 'a', a);
@@ -569,7 +660,7 @@ function renderStep() {
     const p = buildPayload();
     const rows = [
       ['Business type', TYPE_LABEL[p.business_type] || ''], ['Business name', p.business_name], ['Town', p.town],
-      ['Owner', p.owner_name], ['Owner WhatsApp', p.owner_whatsapp], ['Visit date', p.visit_date],
+      ['Owner', p.owner_name], ['Owner WhatsApp', p.owner_whatsapp], ['Visit date', p.visit_date || String(current.visit_date || '').slice(0, 10)],
       ['Orders / day', p.orders_per_day], ['Missed enquiries / week', p.missed_enquiries_per_week],
       ['Fee comfort', (Object.fromEntries(FEE_OPTIONS)[p.fee_comfort]) || ''],
       ['Top pain (A7)', p.part_a.pain_top1], ['One thing to fix (A7)', p.part_a.fix_one_thing],
@@ -598,6 +689,8 @@ function renderStep() {
   body.querySelectorAll('.types label').forEach(l => l.addEventListener('click', () => {
     body.querySelectorAll('.types label').forEach(x => x.classList.remove('sel'));
     l.classList.add('sel');
+    const radio = l.querySelector('input');
+    if (radio) radio.checked = true;
     if (current) current.business_type = l.dataset.type;
     scheduleSave();
   }));
@@ -635,11 +728,48 @@ function showList() {
   $('wizardView').classList.add('hidden');
   $('listView').classList.remove('hidden');
   loadVisits();
-  if (me && (me.role === 'manager' || me.role === 'owner')) loadDashboard();
+  if (me && me.can_dashboard) loadDashboard();
+  showPendingNotice();
+}
+
+// Answers kept on this phone that never reached the server (connection
+// dropped, tab closed, login expired) — offer to pick them up again.
+function showPendingNotice() {
+  const el = $('listNotice');
+  const pending = pendingBackups();
+  if (!pending.length) { el.style.display = 'none'; return; }
+  el.innerHTML = pending.map((b, i) =>
+    `<p>Answers for ${esc((b.part_a && b.part_a.business_name) || (b.id ? 'visit #' + b.id : 'a new visit'))} are kept on this phone but were not sent yet. ` +
+    `<button type="button" class="ghost" data-resume="${i}">Resume</button></p>`).join('');
+  el.style.display = 'block';
+  el.querySelectorAll('[data-resume]').forEach(btn => btn.addEventListener('click', async () => {
+    const b = pending[Number(btn.dataset.resume)];
+    if (!b.id) { openWizard(null); return; }
+    try { openWizard(await api('/api/visits/' + b.id)); }
+    catch (e) {
+      if (e.status === 404 || e.status === 403) { clearBackup(b.id); showPendingNotice(); }
+      showError('listError', e.message);
+    }
+  }));
 }
 
 function openWizard(visit) {
+  clearTimeout(saveTimer); clearTimeout(retryTimer);
   current = visit || { status: 'draft', part_a: {}, part_b: {}, part_c: {}, attachments: [] };
+  dirty = false;
+  $('saveState').textContent = '';
+  if (current.id && current.status !== 'draft') clearBackup(current.id);
+  const bk = current.status === 'draft' ? readBackup(current.id) : null;
+  if (bk) {
+    current.part_a = Object.assign({}, current.part_a, bk.part_a);
+    current.part_b = Object.assign({}, current.part_b, bk.part_b);
+    if (bk.business_type) current.business_type = bk.business_type;
+    if (bk.visit_date_local) current.visit_date_local = bk.visit_date_local;
+    dirty = true;
+    editSeq += 1;
+    $('saveState').textContent = 'Restored answers that were not sent yet';
+    saveTimer = setTimeout(saveDraft, 800);
+  }
   step = 0;
   $('listView').classList.add('hidden');
   $('wizardView').classList.remove('hidden');
@@ -688,6 +818,10 @@ async function loadDashboard() {
   } catch (e) { /* employees never reach here; managers see the visits list regardless */ }
 }
 
+const ROLE_LABEL = { intern: 'Intern', trainee: 'Trainee', engineer: 'Engineer', sr_engineer: 'Sr Engineer',
+  manager: 'Manager', branch_manager: 'Branch Manager', hr: 'HR', owner: 'Admin' };
+const roleLabel = r => ROLE_LABEL[r] || r;
+
 /* ---------------- wiring ---------------- */
 $('newVisitBtn').addEventListener('click', () => openWizard(null));
 $('backBtn').addEventListener('click', async () => { await saveDraft(); gotoStep(step - 1); });
@@ -702,7 +836,9 @@ $('submitBtn').addEventListener('click', async () => {
   showError('wizError', ''); $('wizOk').style.display = 'none';
   try {
     await saveDraft();
-    if (!current || !current.id) throw new Error('draft was not saved — check connection');
+    if (saving || dirty || !current || !current.id) {
+      throw new Error('Your answers are not sent yet — they are kept on this phone. Wait for "Draft saved", then tap Submit again.');
+    }
     current = await api('/api/visits/' + current.id + '/submit', { method: 'POST', body: '{}' });
     $('wizTitle').textContent = `Visit #${current.id} (submitted)`;
     $('wizOk').textContent = 'Visit submitted. Fill Part C below when you have left the shop.';
@@ -727,15 +863,25 @@ $('wrapupBtn').addEventListener('click', async () => {
   } catch (e) { showError('wizError', e.message); }
 });
 $('logoutBtn').addEventListener('click', async () => {
+  if (!$('wizardView').classList.contains('hidden')) await saveDraft();
   await fetch('/api/logout', { method: 'POST' }).catch(() => {});
   window.location.href = '/login';
+});
+// Send unsent answers as soon as the connection is back, and keep the
+// latest answers on the phone if the tab is closed mid-step.
+window.addEventListener('online', () => { if (dirty) saveDraft(); });
+window.addEventListener('pagehide', () => {
+  if ($('wizardView').classList.contains('hidden') || !current || current.status !== 'draft') return;
+  captureLocal();
+  if (dirty) backupLocal();
 });
 
 /* Deep link: /feedback/<id> opens that visit directly. */
 (async function init() {
   try {
     me = await api('/api/whoami');
-    $('whoami').textContent = `${me.email} · ${me.role}`;
+    $('whoami').textContent = `${me.email} · ${roleLabel(me.role)}`;
+    if (me.can_staff) $('staffLink').classList.remove('hidden');
   } catch { return; } // api() already redirected to /login on 401
   const m = window.location.pathname.match(/^\/feedback\/(\d+)$/);
   if (m) {

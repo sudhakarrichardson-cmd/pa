@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PlotFarms — Your Personal Assistant for Everything</title>
+<link rel="icon" type="image/png" href="/assets/favicon.png">
 <style>
   :root { --bg:#0d0b08; --panel:#171310; --panel2:#1f1913; --gold:#c9a227; --gold2:#e8c95a; --text:#f3ead8; --muted:#b8ab90; --line:#33291a; }
   * { box-sizing:border-box; margin:0; padding:0; }
@@ -12,6 +13,8 @@
   .wrap { max-width:1120px; margin:0 auto; padding:0 20px; }
   header { position:sticky; top:0; background:rgba(13,11,8,.95); border-bottom:1px solid var(--line); z-index:10; }
   .nav { display:flex; align-items:center; gap:18px; padding:14px 0; flex-wrap:wrap; }
+  .brandrow { display:flex; align-items:center; gap:11px; text-decoration:none; }
+  .brandrow .mark { height:26px; width:auto; border-radius:6px; display:block; }
   .brand { font-size:24px; font-weight:bold; color:var(--gold2); text-decoration:none; letter-spacing:.5px; }
   .brand small { display:block; font-size:11px; color:var(--muted); letter-spacing:2px; font-family:Arial,sans-serif; }
   .nav nav { margin-left:auto; display:flex; gap:16px; align-items:center; flex-wrap:wrap; font-family:Arial,sans-serif; font-size:14px; }
@@ -61,7 +64,7 @@
 <body>
 <header>
   <div class="wrap nav">
-    <a class="brand" href="/">PlotFarms<small>PERSONAL ASSISTANT</small></a>
+    <a class="brandrow" href="/" aria-label="PlotFarms Personal Assistant — home"><img class="mark" src="/assets/logo-mark.webp" alt="" width="53" height="26"><span class="brand">PlotFarms<small>PERSONAL ASSISTANT</small></span></a>
     <nav>
       <a href="#services">Services</a>
       <a href="#how">How It Works</a>

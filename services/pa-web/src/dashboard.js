@@ -92,7 +92,7 @@ module.exports = function registerDashboard(pool) {
         const lines = [header.map(csvCell).join(',')];
         for (const v of r.rows) {
           lines.push([
-            v.visit_date ? new Date(v.visit_date).toISOString().slice(0, 10) : '',
+            v.visit_date ? String(v.visit_date).slice(0, 10) : '',
             v.business_name || '',
             TYPE_LABEL[v.business_type] || v.business_type || '',
             v.town || '',
@@ -106,7 +106,7 @@ module.exports = function registerDashboard(pool) {
             INTEREST_LABEL[v.interest_level] || v.interest_level || '',
             FEE_LABEL[v.fee_comfort] || v.fee_comfort || '',
             PILOT_LABEL[v.pilot_status] || v.pilot_status || '',
-            v.pilot_date ? new Date(v.pilot_date).toISOString().slice(0, 10) : '',
+            v.pilot_date ? String(v.pilot_date).slice(0, 10) : '',
             v.next_step || '',
             (v.part_c && (v.part_c.notes || v.part_c.q11)) || '',
           ].map(csvCell).join(','));
@@ -122,7 +122,8 @@ module.exports = function registerDashboard(pool) {
 
       return false;
     } catch (e) {
-      json(res, 500, { error: e.message });
+      console.error(e.message);   // details stay in the server log, not in the response
+      json(res, 500, { error: 'server error' });
       return true;
     }
   };

@@ -7,9 +7,12 @@
  *   2. The returned JWT is verified locally (HS256, SUPABASE_JWT).
  *   3. Access is granted per app: platform.user_app_access must hold an
  *      active row for app_code 'survey'. No grant -> 403, even with a
- *      correct password. The role on that row drives capabilities.
+ *      correct password. The role on that row is one of this app's own
+ *      roles; survey.role_capabilities says what each role may do.
  * The JWT rides in an httpOnly cookie ('pa_session'); there is no
  * server-side session store and no shared key login for this app.
+ * A second httpOnly cookie ('pa_refresh') lets the server renew an
+ * expired JWT through GoTrue, so a long visit is not logged out mid-form.
  *
  * STRIDE: login is rate-limited per IP (spoofing); the grant is
  * re-checked on every authenticated call (elevation); failures are
@@ -19,6 +22,8 @@ const crypto = require('crypto');
 
 const APP_CODE = 'survey';
 const COOKIE = 'pa_session';
+const REFRESH_COOKIE = 'pa_refresh';
+const REFRESH_MAX_AGE = 12 * 60 * 60; // seconds of inactivity before a fresh login is needed
 // Stack JWT signing secret (from .env; the value itself never appears here).
 const stackJwt = process.env.SUPABASE_JWT || '';
 const AUTH_URL = (process.env.SUPABASE_AUTH_URL || 'http://kong:8000').replace(/\/$/, '');
@@ -85,30 +90,96 @@ function clientIp(req) {
     || req.socket.remoteAddress || 'unknown';
 }
 
+// ---- session cookies + renewal ------------------------------------------
+// The access JWT is short-lived (the stack's JWT expiry). A second
+// httpOnly cookie holds the GoTrue refresh token so the server can renew
+// the access JWT while the employee keeps working — a long shop visit is
+// never cut off mid-form. The session ends after REFRESH_MAX_AGE seconds
+// without any request, or on Sign out. The 'survey' grant is still
+// re-checked on every call, so removing a grant takes effect at once.
+function sessionCookies(req, accessToken, refreshToken, payload) {
+  const secure = (req.headers['x-forwarded-proto'] || '') === 'https';
+  const tail = `; HttpOnly; Path=/; SameSite=Lax${secure ? '; Secure' : ''}`;
+  const maxAge = payload.exp ? Math.max(60, payload.exp - Math.floor(Date.now() / 1000)) : 3600;
+  const out = [`${COOKIE}=${encodeURIComponent(accessToken)}; Max-Age=${maxAge}${tail}`];
+  if (refreshToken) out.push(`${REFRESH_COOKIE}=${encodeURIComponent(refreshToken)}; Max-Age=${REFRESH_MAX_AGE}${tail}`);
+  return out;
+}
+
+// One renewal per refresh token at a time; the result is kept for a few
+// seconds so parallel requests carrying the same (already used) refresh
+// token all get the same new session instead of racing GoTrue.
+const renewals = new Map(); // refresh token -> Promise<{access, refresh, payload} | null>
+function renewSession(refreshToken) {
+  if (!ANON_KEY || !refreshToken) return Promise.resolve(null);
+  let p = renewals.get(refreshToken);
+  if (!p) {
+    p = (async () => {
+      try {
+        const r = await fetch(`${AUTH_URL}/auth/v1/token?grant_type=refresh_token`, {
+          method: 'POST',
+          headers: { apikey: ANON_KEY, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refresh_token: refreshToken }),
+          signal: AbortSignal.timeout(5000),
+        });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok || !data.access_token) return null;
+        const payload = verifyJwt(data.access_token);
+        if (!payload || !payload.sub) return null;
+        return { access: data.access_token, refresh: data.refresh_token || null, payload };
+      } catch { return null; }
+    })();
+    renewals.set(refreshToken, p);
+    const forget = () => setTimeout(() => renewals.delete(refreshToken), 10000).unref();
+    p.then(forget, forget);
+  }
+  return p;
+}
+
 module.exports = function createAuth(pool) {
   const q = (sql, params) => pool.query(sql, params);
 
+  // Returns { role, caps } or null. The role comes from the per-app grant;
+  // what the role may do comes from this app's own role table
+  // (survey.role_capabilities). A role this app does not know = no access.
   async function grantFor(userId) {
     const acc = await q(
       'SELECT role_code FROM platform.user_app_access WHERE user_id = $1 AND app_code = $2 AND active',
       [userId, APP_CODE]);
-    return acc.rows[0] ? acc.rows[0].role_code : null;
+    if (!acc.rows[0]) return null;
+    const role = acc.rows[0].role_code;
+    const c = await q('SELECT capability FROM survey.role_capabilities WHERE role_code = $1 AND allowed', [role]);
+    const caps = c.rows.map(r => r.capability);
+    return caps.length ? { role, caps } : null;
   }
 
   // Returns { userId, email, role } or null. Fails closed on any error.
-  async function requireAuth(req) {
+  // When the access JWT has expired but the refresh cookie is still good,
+  // the session is renewed and the new cookies are set on `res`.
+  async function requireAuth(req, res) {
     try {
-      const token = parseCookies(req)[COOKIE];
-      if (!token) return null;
-      const payload = verifyJwt(token);
+      const cookies = parseCookies(req);
+      let token = cookies[COOKIE];
+      let payload = verifyJwt(token);
+      if ((!payload || !payload.sub) && cookies[REFRESH_COOKIE]) {
+        const s = await renewSession(cookies[REFRESH_COOKIE]);
+        if (s) {
+          payload = s.payload;
+          token = s.access;
+          if (res && !res.headersSent) res.setHeader('Set-Cookie', sessionCookies(req, s.access, s.refresh, s.payload));
+        }
+      }
       if (!payload || !payload.sub) return null;
-      const role = await grantFor(payload.sub);
-      if (!role) return null;
-      return { userId: payload.sub, email: payload.email || null, role };
+      const grant = await grantFor(payload.sub);
+      if (!grant) return null;
+      // `token` stays on the server: it is only forwarded to platform-admin
+      // for the admin's "Add users" calls (users.js).
+      return { userId: payload.sub, email: payload.email || null, role: grant.role, caps: grant.caps, token };
     } catch { return null; }
   }
 
-  const isManager = user => !!user && (user.role === 'manager' || user.role === 'owner');
+  const can = (user, cap) => !!user && Array.isArray(user.caps) && (user.caps.includes('*') || user.caps.includes(cap));
+  const isManager = user => can(user, 'view_all_visits');
 
   async function login(req, res) {
     if (throttled(clientIp(req))) {
@@ -144,34 +215,45 @@ module.exports = function createAuth(pool) {
     const payload = verifyJwt(data.access_token);
     if (!payload || !payload.sub) { json(res, 401, { error: 'bad or expired login' }); return true; }
 
-    let role;
-    try { role = await grantFor(payload.sub); }
+    let grant;
+    try { grant = await grantFor(payload.sub); }
     catch (e) { json(res, 500, { error: 'access check failed' }); return true; }
-    if (!role) {
+    if (!grant) {
       json(res, 403, { error: 'this login has no Business Feedback access' });
       return true;
     }
 
-    const maxAge = payload.exp ? Math.max(60, payload.exp - Math.floor(Date.now() / 1000)) : 3600;
-    const secure = (req.headers['x-forwarded-proto'] || '') === 'https';
     res.writeHead(200, {
       'Content-Type': 'application/json',
       'Cache-Control': 'no-store',
-      'Set-Cookie': `${COOKIE}=${encodeURIComponent(data.access_token)}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${maxAge}${secure ? '; Secure' : ''}`,
+      'Set-Cookie': sessionCookies(req, data.access_token, data.refresh_token || null, payload),
     });
-    res.end(JSON.stringify({ ok: true, email: payload.email || b.email, role }));
+    res.end(JSON.stringify({ ok: true, email: payload.email || b.email, role: grant.role }));
     return true;
   }
 
   function logout(req, res) {
+    // Best effort: also end the session at GoTrue so the refresh token
+    // stops working there; the cookies are cleared either way.
+    const token = parseCookies(req)[COOKIE];
+    if (token && ANON_KEY) {
+      fetch(`${AUTH_URL}/auth/v1/logout`, {
+        method: 'POST',
+        headers: { apikey: ANON_KEY, Authorization: `Bearer ${token}` },
+        signal: AbortSignal.timeout(5000),
+      }).catch(() => {});
+    }
     res.writeHead(200, {
       'Content-Type': 'application/json',
       'Cache-Control': 'no-store',
-      'Set-Cookie': `${COOKIE}=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0`,
+      'Set-Cookie': [
+        `${COOKIE}=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0`,
+        `${REFRESH_COOKIE}=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0`,
+      ],
     });
     res.end(JSON.stringify({ ok: true }));
     return true;
   }
 
-  return { login, logout, requireAuth, isManager, verifyJwt, json, readBody, APP_CODE, COOKIE };
+  return { login, logout, requireAuth, isManager, can, verifyJwt, json, readBody, APP_CODE, COOKIE };
 };

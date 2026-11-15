@@ -323,7 +323,10 @@ module.exports = function registerVisits(pool, auth) {
       json(res, 404, { error: 'not found' });
       return true;
     } catch (e) {
-      json(res, e.message === 'body too large' ? 413 : 500, { error: e.message });
+      if (e.message === 'body too large') { json(res, 413, { error: 'request too large' }); return true; }
+      if (e instanceof SyntaxError) { json(res, 400, { error: 'bad request' }); return true; }
+      console.error(e.message);   // details stay in the server log, not in the response
+      json(res, 500, { error: 'server error' });
       return true;
     }
   };

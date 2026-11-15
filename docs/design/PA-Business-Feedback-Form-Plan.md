@@ -4,6 +4,12 @@
 **Source:** Business Survey Questionnaire, 2026-11-12 (Part A common core, Part B type modules, Part C engineer wrap-up)
 **Host:** VPS srv2111189 (same server as textiles / wa-gateway / db.plotfarms.com)
 
+> **Amendments — owner decisions 2026-11-14 (after Gate 2):**
+> (a) `/` is the public PA home page (Gate 3 design); only the survey is behind login. This replaces the "`/` redirects to login" row in §2.
+> (b) No `/admin` page on pa.plotfarms.com. The app admin — who also acts as HR — gets a **Staff & HR** page (`/staff`, separate from the survey page): employee profiles + logins, disabling access, and offer letters (PDF). The platform admin adds only the app admin.
+> (c) Roles of this app: Intern, Trainee, Engineer, Sr Engineer (own visits); Manager, Branch Manager (all visits + dashboard); HR (Staff & HR only, no survey data); Admin (`owner`: all visits of all staff + all HR work). These replace employee / manager / owner in §3.
+> (d) Employee profile: job, personal and salary details; ID and bank details optional for now. Offer letters use a standard draft wording, to be reviewed by the owner.
+
 ## 1. What we are building
 
 The paper questionnaire becomes a login-only web form that the field engineer fills on his phone during the visit. One submitted form = one business visit, stored in the database. The office gets a live summary instead of paper forms and a manually updated Excel tracker.

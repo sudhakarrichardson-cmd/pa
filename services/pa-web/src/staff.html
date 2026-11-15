@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Staff &amp; HR — PlotFarms PA</title>
+<link rel="icon" type="image/png" href="/assets/favicon.png">
+<style>
+  :root { --bg:#0d0b08; --panel:#171310; --panel2:#1f1913; --gold:#c9a227; --gold2:#e8c95a; --text:#f3ead8; --muted:#b8ab90; --line:#33291a; --err:#e08a8a; --ok:#9fd49a; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:Arial,sans-serif; line-height:1.5; }
+  .wrap { max-width:960px; margin:0 auto; padding:0 16px 60px; }
+  header { border-bottom:1px solid var(--line); background:rgba(13,11,8,.97); position:sticky; top:0; z-index:10; }
+  .nav { max-width:960px; margin:0 auto; padding:12px 16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .brandrow { display:flex; align-items:center; gap:11px; text-decoration:none; }
+  .brandrow .mark { height:26px; width:auto; border-radius:6px; display:block; }
+  .brand { font-family:Georgia,serif; font-size:20px; color:var(--gold2); }
+  .brand small { display:block; font-size:10px; color:var(--muted); letter-spacing:2px; }
+  .nav .sp { margin-left:auto; display:flex; gap:12px; align-items:center; font-size:13.5px; color:var(--muted); flex-wrap:wrap; }
+  button, .btn { background:var(--gold); color:#171106; border:1px solid var(--gold); padding:10px 16px; border-radius:9px; font-size:14.5px; font-weight:bold; cursor:pointer; text-decoration:none; display:inline-block; }
+  button.ghost, .btn.ghost { background:transparent; color:var(--gold2); }
+  button.small, .btn.small { padding:6px 10px; font-size:12.5px; margin:2px 2px 2px 0; }
+  button:disabled { opacity:.5; }
+  h1 { font-family:Georgia,serif; font-size:24px; color:var(--gold2); margin:22px 0 4px; }
+  h2 { font-family:Georgia,serif; font-size:18px; color:var(--gold2); margin:22px 0 4px; }
+  .sub { color:var(--muted); font-size:13.5px; margin-bottom:12px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:18px; margin-bottom:16px; }
+  .tabs { display:flex; gap:8px; flex-wrap:wrap; margin:16px 0; }
+  .tabs button { background:transparent; color:var(--muted); border:1px solid var(--line); }
+  .tabs button.on { background:var(--gold); color:#171106; border-color:var(--gold); }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th, td { text-align:left; padding:9px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--gold); font-size:12px; text-transform:uppercase; letter-spacing:1px; }
+  .pill { display:inline-block; font-size:11.5px; padding:2px 9px; border-radius:12px; border:1px solid var(--line); color:var(--muted); }
+  .pill.on { color:var(--ok); border-color:#3d5a38; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:4px 16px; }
+  .grid .wide { grid-column:1 / -1; }
+  label.flabel { display:block; font-size:13.5px; margin:12px 0 5px; font-weight:bold; }
+  label.flabel .opt { color:var(--muted); font-weight:normal; }
+  input[type=text], input[type=tel], input[type=number], input[type=date], select, textarea {
+    width:100%; padding:11px; border-radius:9px; border:1px solid var(--line); background:#0d0b08; color:var(--text); font-size:16px; font-family:Arial,sans-serif; }
+  input[readonly], input:disabled { opacity:.6; }
+  textarea { min-height:64px; resize:vertical; }
+  .error { display:none; background:#3a1717; border:1px solid #6e2b2b; color:var(--err); border-radius:9px; padding:11px 13px; font-size:14px; margin:14px 0; }
+  .okmsg { display:none; background:#1d2f1a; border:1px solid #3d5a38; color:var(--ok); border-radius:9px; padding:11px 13px; font-size:14px; margin:14px 0; }
+  .hidden { display:none !important; }
+  a { color:var(--gold2); }
+</style>
+</head>
+<body>
+<header>
+  <div class="nav">
+    <div class="brandrow"><img class="mark" src="/assets/logo-mark.webp" alt="" width="53" height="26"><div class="brand">PlotFarms<small>STAFF &amp; HR</small></div></div>
+    <div class="sp">
+      <a href="/feedback" id="surveyLink" class="hidden">Business Feedback</a>
+      <span id="whoami"></span>
+      <button class="ghost" id="logoutBtn" type="button">Sign out</button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <h1>Staff &amp; HR</h1>
+  <div class="tabs">
+    <button type="button" data-tab="staff" class="hidden">Employees</button>
+    <button type="button" data-tab="offers" class="hidden">Offer letters</button>
+    <button type="button" data-tab="org" class="hidden">Company details</button>
+  </div>
+  <div class="error" id="err"></div>
+  <div class="okmsg" id="ok"></div>
+
+  <!-- ================= EMPLOYEES ================= -->
+  <div id="tab_staff" class="hidden">
+    <div id="staffList">
+      <p style="margin-bottom:14px;"><button type="button" id="addBtn">+ Add employee</button></p>
+      <div class="card"><div style="overflow-x:auto;">
+        <table>
+          <thead><tr><th>Employee</th><th>Login</th><th>Role</th><th>Branch</th><th>Access</th><th></th></tr></thead>
+          <tbody id="staffBody"><tr><td colspan="6" style="color:var(--muted);">Loading…</td></tr></tbody>
+        </table>
+      </div></div>
+    </div>
+    <div id="staffForm" class="card hidden">
+      <h2 style="margin-top:0;" id="formTitle">Add an employee</h2>
+      <p class="sub" id="formSub"></p>
+      <div id="formFields"></div>
+      <p style="margin-top:20px;">
+        <button type="button" id="saveBtn">Save</button>
+        <button type="button" class="ghost" id="cancelBtn">Cancel</button>
+      </p>
+    </div>
+  </div>
+
+  <!-- ================= OFFER LETTERS ================= -->
+  <div id="tab_offers" class="hidden">
+    <div class="card">
+      <h2 style="margin-top:0;">Create an offer letter</h2>
+      <p class="sub">The letter uses the company details and the standard wording. After creating it, download the PDF from the list below.</p>
+      <div id="offerFields"></div>
+      <p style="margin-top:20px;"><button type="button" id="offerBtn">Create offer letter</button></p>
+    </div>
+    <div class="card"><div style="overflow-x:auto;">
+      <table>
+        <thead><tr><th>Ref</th><th>Candidate</th><th>Position</th><th>Monthly pay</th><th>Joining</th><th></th></tr></thead>
+        <tbody id="offersBody"><tr><td colspan="6" style="color:var(--muted);">Loading…</td></tr></tbody>
+      </table>
+    </div></div>
+  </div>
+
+  <!-- ================= COMPANY DETAILS ================= -->
+  <div id="tab_org" class="hidden">
+    <div class="card">
+      <h2 style="margin-top:0;">Company details on offer letters</h2>
+      <p class="sub" id="orgSub">These print on the letterhead and the signature of every new offer letter. Letters already created keep the details they were issued with.</p>
+      <div id="orgFields"></div>
+      <p style="margin-top:20px;"><button type="button" id="orgBtn">Save company details</button></p>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const ROLE_ORDER = ['intern', 'trainee', 'engineer', 'sr_engineer', 'manager', 'branch_manager', 'hr', 'owner'];
+const ROLE_LABEL = { intern: 'Intern', trainee: 'Trainee', engineer: 'Engineer', sr_engineer: 'Sr Engineer',
+  manager: 'Manager', branch_manager: 'Branch Manager', hr: 'HR', owner: 'Admin' };
+const roleLabel = r => ROLE_LABEL[r] || r || '';
+const rupees = n => (n == null || n === '' ? '' : '₹' + Number(n).toLocaleString('en-IN'));
+
+let me = null, roles = [], people = [], idBankReady = false, editing = null;
+
+async function api(path, opts) {
+  const r = await fetch(path, Object.assign({ headers: { 'Content-Type': 'application/json' } }, opts || {}));
+  if (r.status === 401) { window.location.href = '/login'; throw new Error('login required'); }
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) { const e = new Error(data.error || ('request failed (' + r.status + ')')); e.status = r.status; throw e; }
+  return data;
+}
+function say(ok, msg) {
+  $('err').textContent = ok ? '' : msg; $('err').style.display = !ok && msg ? 'block' : 'none';
+  $('ok').textContent = ok ? (msg || '') : ''; $('ok').style.display = ok && msg ? 'block' : 'none';
+  if (msg) window.scrollTo(0, 0);
+}
+function randomSecret() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  const n = new Uint32Array(12); crypto.getRandomValues(n);
+  return Array.from(n, x => chars[x % chars.length]).join('');
+}
+
+/* ---------------- generic form drawing ---------------- */
+// field: [key, label, type, extra]  type: text | tel | number | date | textarea | select | head
+function drawFields(prefix, fields) {
+  let html = '', open = false;
+  for (const [k, label, type, extra] of fields) {
+    const x = extra || {};
+    if (type === 'head') { html += (open ? '</div>' : '') + `<h2>${esc(label)}</h2>` + (x.note ? `<p class="sub" id="${prefix}note_${k}">${esc(x.note)}</p>` : '') + '<div class="grid">'; open = true; continue; }
+    const id = prefix + k;
+    const lab = `<label class="flabel" for="${id}">${esc(label)}${x.optional ? ' <span class="opt">(optional)</span>' : ''}</label>`;
+    let input;
+    if (type === 'textarea') input = `<textarea id="${id}"></textarea>`;
+    else if (type === 'select') input = `<select id="${id}">${(x.options || []).map(([v, t]) => `<option value="${esc(v)}">${esc(t)}</option>`).join('')}</select>`;
+    else input = `<input type="${type}" id="${id}" autocomplete="off"${x.step ? ' step="' + x.step + '"' : ''}>`;
+    html += `<div class="${x.wide ? 'wide' : ''}" id="${id}_box">${lab}${x.wrap ? x.wrap(input) : input}</div>`;
+  }
+  return html + (open ? '</div>' : '');
+}
+const readFields = (prefix, fields) => Object.fromEntries(fields.filter(f => f[2] !== 'head').map(f => [f[0], $(prefix + f[0]).value.trim()]));
+const fillFields = (prefix, fields, values) => fields.filter(f => f[2] !== 'head').forEach(f => { $(prefix + f[0]).value = (values && values[f[0]] != null) ? values[f[0]] : ''; });
+
+/* ---------------- employees ---------------- */
+const EMP_FIELDS = [
+  ['login', 'Employee and login', 'head'],
+  ['full_name', 'Employee name', 'text'],
+  ['email', 'Email (this is the login)', 'text'],
+  ['mobile', 'Mobile number', 'tel'],
+  ['role_code', 'Role', 'select'],
+  ['secret', 'Temporary password (at least 8 characters — tell it to the employee)', 'text',
+    { wide: true, wrap: i => `<div style="display:flex; gap:10px;">${i}<button type="button" class="ghost" id="genBtn">Generate</button></div>` }],
+  ['job', 'Job details', 'head'],
+  ['employee_code', 'Employee ID', 'text'],
+  ['branch', 'Branch / location', 'text'],
+  ['date_of_joining', 'Date of joining', 'date'],
+  ['reporting_manager', 'Reporting manager', 'text'],
+  ['personal', 'Personal details', 'head'],
+  ['date_of_birth', 'Date of birth', 'date'],
+  ['emergency_contact_name', 'Emergency contact — name', 'text'],
+  ['emergency_contact_phone', 'Emergency contact — phone', 'tel'],
+  ['address', 'Address', 'textarea', { wide: true }],
+  ['pay', 'Salary', 'head', { note: 'Seen only by the admin and HR.' }],
+  ['monthly_salary', 'Monthly salary / stipend (₹)', 'number', { step: '0.01' }],
+  ['idbank', 'ID and bank details', 'head', { note: 'Optional for now. The Aadhaar, PAN and account number are stored encrypted.' }],
+  ['aadhaar_no', 'Aadhaar number', 'text', { optional: true }],
+  ['pan_no', 'PAN', 'text', { optional: true }],
+  ['bank_account_name', 'Bank account holder name', 'text', { optional: true }],
+  ['bank_name', 'Bank name', 'text', { optional: true }],
+  ['bank_account_no', 'Bank account number', 'text', { optional: true }],
+  ['bank_ifsc', 'IFSC', 'text', { optional: true }],
+];
+const SEALED_KEYS = ['aadhaar_no', 'pan_no', 'bank_account_no'];
+
+async function loadStaff() {
+  const d = await api('/api/staff');
+  roles = (d.roles || []).slice().sort((a, b) => (ROLE_ORDER.indexOf(a) + 1 || 99) - (ROLE_ORDER.indexOf(b) + 1 || 99));
+  people = d.people || []; idBankReady = !!d.id_bank_ready;
+  const myId = d.me && d.me.user_id;
+  $('staffBody').innerHTML = people.length ? people.map((p, i) => {
+    const pr = p.profile || {};
+    const mine = p.user_id === myId;
+    return `<tr><td>${esc(p.display_name || '—')}${pr.employee_code ? '<br><span class="sub">ID ' + esc(pr.employee_code) + '</span>' : ''}</td>` +
+      `<td>${esc(p.email || '(login removed)')}${p.phone ? '<br><span class="sub">' + esc(p.phone) + '</span>' : ''}</td>` +
+      `<td>${esc(roleLabel(p.role_code))}</td><td>${esc(pr.branch || '')}</td>` +
+      `<td><span class="pill ${p.active ? 'on' : ''}">${p.active ? 'active' : 'off'}</span></td>` +
+      `<td>${mine ? '<span class="sub">you</span>' : p.locked ? '<span class="sub">' + (p.role_code === 'owner' ? 'admin' : 'managed by admin') + '</span>' :
+        `<button type="button" class="ghost small" data-edit="${i}">Edit</button>` +
+        `<button type="button" class="ghost small" data-toggle="${i}">${p.active ? 'Disable access' : 'Enable access'}</button>` +
+        `<button type="button" class="ghost small" data-reset="${i}">New password</button>` +
+        (me.can_offer_letters ? `<button type="button" class="ghost small" data-offer="${i}">Offer letter</button>` : '')}</td></tr>`;
+  }).join('') : '<tr><td colspan="6" style="color:var(--muted);">No one yet.</td></tr>';
+
+  const act = (attr, fn) => document.querySelectorAll(`[${attr}]`).forEach(b => b.addEventListener('click', async () => {
+    try { await fn(people[Number(b.getAttribute(attr))]); } catch (e) { say(false, e.message); }
+  }));
+  act('data-edit', p => openForm(p));
+  act('data-toggle', async p => {
+    if (p.active && !window.confirm(`Disable access for ${p.email}? They will be signed out and cannot sign in until you enable it again. Their profile and visits are kept.`)) return;
+    await api('/api/staff/' + p.user_id, { method: 'PUT', body: JSON.stringify({ active: !p.active }) });
+    await loadStaff(); say(true, `Access for ${p.email} is now ${p.active ? 'disabled' : 'enabled'}.`);
+  });
+  act('data-reset', async p => {
+    const secret = randomSecret();
+    const body = {}; body['pass' + 'word'] = secret;
+    await api('/api/staff/' + p.user_id + '/password', { method: 'POST', body: JSON.stringify(body) });
+    say(true, `New temporary password for ${p.email}: ${secret}  — note it now, it is not shown again.`);
+  });
+  act('data-offer', p => offerFor(p));
+}
+
+async function openForm(person) {
+  say(true, '');
+  editing = person || null;
+  $('formFields').innerHTML = drawFields('e_', EMP_FIELDS.map(f => f[0] === 'role_code'
+    ? ['role_code', 'Role', 'select', { options: [['', '— select —']].concat(roles.map(r => [r, roleLabel(r)])) }] : f));
+  $('genBtn').addEventListener('click', () => { $('e_secret').value = randomSecret(); });
+  $('formTitle').textContent = editing ? 'Edit employee' : 'Add an employee';
+  $('formSub').textContent = editing ? 'Change the profile or the role. The login email cannot be changed here.'
+    : 'This creates the profile and the login together. The employee signs in at Employee Login with this email and the temporary password.';
+  $('e_secret_box').classList.toggle('hidden', !!editing);
+  $('e_email').readOnly = !!editing;
+  if (!idBankReady) {
+    SEALED_KEYS.forEach(k => { $('e_' + k).disabled = true; });
+    $('e_note_idbank').textContent = 'Optional for now. Aadhaar, PAN and account number cannot be saved until the server key is set (STAFF_DATA_KEY in the deploy guide); the other bank fields can.';
+  }
+  if (editing) {
+    const full = await api('/api/staff/' + editing.user_id);
+    fillFields('e_', EMP_FIELDS, Object.assign({}, full.profile, { email: full.email, role_code: full.role_code }));
+  }
+  $('staffList').classList.add('hidden');
+  $('staffForm').classList.remove('hidden');
+  window.scrollTo(0, 0);
+}
+function closeForm() { $('staffForm').classList.add('hidden'); $('staffList').classList.remove('hidden'); editing = null; }
+
+async function saveEmployee() {
+  say(true, '');
+  const v = readFields('e_', EMP_FIELDS);
+  const secret = v.secret; delete v.secret;
+  if (!idBankReady) SEALED_KEYS.forEach(k => { delete v[k]; });
+  if (!v.full_name || !v.email || !v.role_code) { say(false, 'Name, email and role are required.'); return; }
+  $('saveBtn').disabled = true;
+  try {
+    if (editing) {
+      delete v.email;
+      await api('/api/staff/' + editing.user_id, { method: 'PUT', body: JSON.stringify(v) });
+      closeForm(); await loadStaff(); say(true, 'Saved.');
+      return;
+    }
+    if (secret.length < 8) { say(false, 'The temporary password needs at least 8 characters — or tap Generate.'); return; }
+    v.email = v.email.toLowerCase();
+    const body = Object.assign({}, v); body['pass' + 'word'] = secret;
+    try {
+      const r = await api('/api/staff', { method: 'POST', body: JSON.stringify(body) });
+      closeForm(); await loadStaff();
+      say(true, r.warning || `Profile and login created for ${v.email} as ${roleLabel(v.role_code)}. Give them the temporary password.`);
+    } catch (e) {
+      // The email may already have a PlotFarms login (used in another app):
+      // offer to give that same login access here instead.
+      let found = null;
+      try { found = await api('/api/staff/lookup', { method: 'POST', body: JSON.stringify({ email: v.email }) }); } catch { /* keep the first error */ }
+      if (found && found.found && found.already_in_app) { say(false, `${v.email} is already in the employee list.`); return; }
+      if (!(found && found.found)) { say(false, e.message); return; }
+      if (!window.confirm(`${v.email} already has a PlotFarms login. Give that login access here as ${roleLabel(v.role_code)}? Their existing password stays the same.`)) return;
+      await api('/api/staff/' + found.user_id, { method: 'PUT', body: JSON.stringify(Object.assign({ active: true }, v)) });
+      closeForm(); await loadStaff();
+      say(true, `${v.email} can now sign in here as ${roleLabel(v.role_code)} with their existing password.`);
+    }
+  } catch (e) { say(false, e.message); }
+  finally { $('saveBtn').disabled = false; }
+}
+
+/* ---------------- offer letters ---------------- */
+const today = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); };
+const OFFER_FIELDS = [
+  ['who', 'Candidate', 'head'],
+  ['candidate_name', 'Candidate name', 'text'],
+  ['candidate_mobile', 'Mobile number', 'tel'],
+  ['candidate_email', 'Email', 'text'],
+  ['candidate_address', 'Address', 'textarea', { wide: true }],
+  ['job', 'The offer', 'head'],
+  ['position', 'Position', 'text'],
+  ['work_location', 'Place of work', 'text'],
+  ['reporting_manager', 'Reports to', 'text'],
+  ['date_of_joining', 'Date of joining', 'date'],
+  ['pay_type', 'Pay is a', 'select', { options: [['salary', 'Salary'], ['stipend', 'Stipend (intern / trainee)']] }],
+  ['monthly_pay', 'Monthly amount (₹)', 'number', { step: '0.01' }],
+  ['probation_months', 'Probation (months, 0 for none)', 'number'],
+  ['notice_days', 'Notice period (days)', 'number'],
+  ['offer_date', 'Letter date', 'date'],
+  ['valid_until', 'Offer valid until', 'date'],
+  ['extra_terms', 'Any other term to add', 'textarea', { wide: true, optional: true }],
+];
+function resetOffer(values) {
+  fillFields('o_', OFFER_FIELDS, Object.assign({ pay_type: 'salary', probation_months: 6, notice_days: 30, offer_date: today() }, values || {}));
+}
+function offerFor(p) {
+  const pr = p.profile || {};
+  showTab('offers');
+  resetOffer({
+    candidate_name: p.display_name, candidate_mobile: p.phone, candidate_email: p.email, candidate_address: pr.address,
+    position: roleLabel(p.role_code), work_location: pr.branch, reporting_manager: pr.reporting_manager,
+    date_of_joining: pr.date_of_joining, monthly_pay: pr.monthly_salary,
+    pay_type: (p.role_code === 'intern' || p.role_code === 'trainee') ? 'stipend' : 'salary',
+  });
+  say(true, `Offer letter form filled from ${p.display_name || p.email}'s profile — check it, then create the letter.`);
+}
+async function loadOffers() {
+  const rows = await api('/api/offers');
+  $('offersBody').innerHTML = rows.length ? rows.map(o =>
+    `<tr><td>${esc(o.ref_no)}<br><span class="sub">${esc(o.offer_date)}</span></td><td>${esc(o.candidate_name)}</td><td>${esc(o.position)}</td>` +
+    `<td>${esc(rupees(o.monthly_pay))}${o.pay_type === 'stipend' ? ' <span class="sub">stipend</span>' : ''}</td><td>${esc(o.date_of_joining || '')}</td>` +
+    `<td><a class="btn ghost small" href="/api/offers/${o.id}/pdf">Download PDF</a></td></tr>`).join('')
+    : '<tr><td colspan="6" style="color:var(--muted);">No offer letters yet.</td></tr>';
+}
+async function createOffer() {
+  say(true, '');
+  const v = readFields('o_', OFFER_FIELDS);
+  if (!v.candidate_name || !v.position || !v.monthly_pay) { say(false, 'Candidate name, position and monthly amount are required.'); return; }
+  $('offerBtn').disabled = true;
+  try {
+    const o = await api('/api/offers', { method: 'POST', body: JSON.stringify(v) });
+    resetOffer(); await loadOffers();
+    say(true, `Offer letter ${o.ref_no} created for ${o.candidate_name}. Download the PDF from the list below.`);
+  } catch (e) { say(false, e.message); }
+  finally { $('offerBtn').disabled = false; }
+}
+
+/* ---------------- company details ---------------- */
+const ORG_FIELDS = [
+  ['co', 'Company', 'head'],
+  ['company_name', 'Company name (as registered)', 'text'],
+  ['company_cin', 'CIN', 'text'],
+  ['company_address', 'Registered office address', 'textarea', { wide: true }],
+  ['company_phone', 'Phone', 'tel', { optional: true }],
+  ['company_email', 'Email', 'text', { optional: true }],
+  ['company_website', 'Website', 'text', { optional: true }],
+  ['sig', 'Who signs the offer letter', 'head'],
+  ['signatory_name', 'Name', 'text'],
+  ['signatory_title', 'Title', 'text'],
+];
+async function loadOrg() {
+  const d = await api('/api/org');
+  fillFields('g_', ORG_FIELDS, d);
+  if (!d.can_edit) {
+    ORG_FIELDS.filter(f => f[2] !== 'head').forEach(f => { $('g_' + f[0]).disabled = true; });
+    $('orgBtn').classList.add('hidden');
+    $('orgSub').textContent = 'These print on every new offer letter. Only the admin can change them.';
+  }
+}
+async function saveOrg() {
+  say(true, '');
+  try { await api('/api/org', { method: 'PUT', body: JSON.stringify(readFields('g_', ORG_FIELDS)) }); say(true, 'Company details saved.'); }
+  catch (e) { say(false, e.message); }
+}
+
+/* ---------------- tabs + start ---------------- */
+function showTab(name) {
+  document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === name));
+  ['staff', 'offers', 'org'].forEach(t => $('tab_' + t).classList.toggle('hidden', t !== name));
+  say(true, '');
+  const load = { staff: loadStaff, offers: loadOffers, org: loadOrg }[name];
+  load().catch(e => say(false, e.message));
+}
+document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => { closeForm(); showTab(b.dataset.tab); }));
+$('addBtn').addEventListener('click', () => openForm(null).catch(e => say(false, e.message)));
+$('cancelBtn').addEventListener('click', closeForm);
+$('saveBtn').addEventListener('click', saveEmployee);
+$('offerBtn').addEventListener('click', createOffer);
+$('orgBtn').addEventListener('click', saveOrg);
+$('logoutBtn').addEventListener('click', async () => {
+  await fetch('/api/logout', { method: 'POST' }).catch(() => {});
+  window.location.href = '/login';
+});
+
+(async function init() {
+  try { me = await api('/api/whoami'); } catch { return; }
+  $('whoami').textContent = `${me.email} · ${roleLabel(me.role)}`;
+  if (me.can_visits) $('surveyLink').classList.remove('hidden');
+  $('offerFields').innerHTML = drawFields('o_', OFFER_FIELDS); resetOffer();
+  $('orgFields').innerHTML = drawFields('g_', ORG_FIELDS);
+  const show = t => document.querySelector(`.tabs button[data-tab="${t}"]`).classList.remove('hidden');
+  if (me.can_manage_users) show('staff');
+  if (me.can_offer_letters) { show('offers'); show('org'); }
+  showTab(me.can_manage_users ? 'staff' : 'offers');
+})();
+</script>
+</body>
+</html>

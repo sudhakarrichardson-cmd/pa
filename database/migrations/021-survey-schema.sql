@@ -76,6 +76,129 @@ create table if not exists survey.attachments (
 
 create index if not exists attachments_visit_idx on survey.attachments (visit_id);
 
+-- ------------------------------------------------------ roles of this app
+-- Every app defines its OWN roles (same table shape as
+-- textiles.role_capabilities). The role_code is what the app admin picks
+-- for an employee and what is stored in platform.user_app_access; the
+-- capability rows decide what that role may do inside pa-web:
+--   fill_visits      create and edit own visits
+--   view_all_visits  see every employee's visits
+--   view_dashboard   office dashboard + CSV export
+--   manage_users     Staff & HR page: employee profiles, logins, turn access off
+--   offer_letters    create and download offer letters
+--   *                everything (the app admin: all surveys + all HR work)
+-- 'hr' does the HR work only — it cannot see survey visits.
+-- 'owner' is this app's admin role (platform.apps.admin_role_code below);
+-- the platform admin can create only that one — the app admin creates
+-- everyone else.
+create table if not exists survey.role_capabilities (
+  role_code  text not null,
+  capability text not null,
+  allowed    boolean not null default true,
+  primary key (role_code, capability)
+);
+insert into survey.role_capabilities (role_code, capability) values
+  ('intern','fill_visits'),
+  ('trainee','fill_visits'),
+  ('engineer','fill_visits'),
+  ('sr_engineer','fill_visits'),
+  ('manager','fill_visits'), ('manager','view_all_visits'), ('manager','view_dashboard'),
+  ('branch_manager','fill_visits'), ('branch_manager','view_all_visits'), ('branch_manager','view_dashboard'),
+  ('hr','manage_users'), ('hr','offer_letters'),
+  ('owner','*')
+on conflict do nothing;
+
+-- ------------------------------------------------------ employee profiles
+-- One row per employee, keyed by the login (auth.users.id). No foreign
+-- key on purpose: the HR record must outlive a deleted login.
+-- Aadhaar, PAN and the bank account number are stored ENCRYPTED
+-- (AES-256-GCM); the key exists only in pa-web's server .env
+-- (STAFF_DATA_KEY), never in the database or the repo.
+create table if not exists survey.employees (
+  user_id                 uuid primary key,
+  employee_code           text unique,
+  full_name               text not null,
+  email                   text not null,
+  mobile                  text,
+  role_code               text not null,
+  -- job
+  branch                  text,
+  date_of_joining         date,
+  reporting_manager       text,
+  -- personal
+  address                 text,
+  date_of_birth           date,
+  emergency_contact_name  text,
+  emergency_contact_phone text,
+  -- salary (visible to admin / HR only)
+  monthly_salary          numeric(12,2),
+  -- ID and bank
+  aadhaar_enc             text,
+  pan_enc                 text,
+  bank_account_enc        text,
+  bank_account_name       text,
+  bank_name               text,
+  bank_ifsc               text,
+  created_by              text not null,
+  created_at              timestamptz not null default now(),
+  updated_at              timestamptz not null default now()
+);
+
+-- ---------------------------------------------------------- offer letters
+-- One row per letter. The company letterhead + signatory are copied into
+-- `company` when the letter is created, so an old letter always
+-- re-downloads exactly as it was issued.
+create table if not exists survey.offer_letters (
+  id                bigint generated always as identity primary key,
+  candidate_name    text not null,
+  candidate_email   text,
+  candidate_mobile  text,
+  candidate_address text,
+  position          text not null,
+  work_location     text,
+  reporting_manager text,
+  date_of_joining   date,
+  pay_type          text not null default 'salary' check (pay_type in ('salary','stipend')),
+  monthly_pay       numeric(12,2) not null,
+  probation_months  integer not null default 6,
+  notice_days       integer not null default 30,
+  offer_date        date not null default current_date,
+  valid_until       date,
+  extra_terms       text,
+  company           jsonb not null,
+  created_by        text not null,
+  created_at        timestamptz not null default now()
+);
+
+-- Company details printed on offer letters; filled by the app admin on
+-- the Staff & HR page (single row).
+create table if not exists survey.org_settings (
+  id              integer primary key default 1 check (id = 1),
+  company_name    text,
+  company_cin     text,
+  company_address text,
+  company_phone   text,
+  company_email   text,
+  company_website text,
+  signatory_name  text,
+  signatory_title text,
+  updated_by      text,
+  updated_at      timestamptz
+);
+insert into survey.org_settings (id) values (1) on conflict do nothing;
+-- Starting values given by the owner on 2026-11-14 (public company
+-- record). Applied only while the row is still empty; afterwards the
+-- admin edits them on the page and a re-run never overwrites that.
+update survey.org_settings
+   set company_name    = 'MSR Plotfarms Private Limited',
+       company_cin     = 'U72900AP2020PTC114758',
+       company_address = '7-26-6B, Chevuri Vari Thota, Kavali, Nellore District, Andhra Pradesh 524201, India',
+       signatory_name  = 'Rajani Jetty',
+       signatory_title = 'Director',
+       updated_by      = 'migration 021',
+       updated_at      = now()
+ where id = 1 and company_name is null;
+
 -- ------------------------------------------------------- app registration
 -- Same pattern as 012 (platform app registration): the 'survey' app must
 -- exist in platform.apps before any grant in platform.user_app_access
@@ -102,6 +225,21 @@ update platform.apps
 grant usage on schema survey to survey_app;
 grant select, insert, update, delete on all tables in schema survey to survey_app;
 grant usage, select on all sequences in schema survey to survey_app;
+-- The app reads its role table but must not be able to change what a
+-- role may do.
+revoke insert, update, delete on survey.role_capabilities from survey_app;
+
+-- platform-admin (the only holder of the Auth service key) validates the
+-- role an app admin assigns against THIS app's role list, exactly as 011
+-- lets it read textiles.role_capabilities. Skipped where that DB role
+-- does not exist (e.g. a local rig).
+do $$
+begin
+  if exists (select 1 from pg_roles where rolname = 'platform_admin') then
+    grant usage on schema survey to platform_admin;
+    grant select on survey.role_capabilities to platform_admin;
+  end if;
+end $$;
 
 -- The 42501 lesson (textiles, 2026-11-11): an app role needs USAGE on
 -- the platform SCHEMA as well as the table grants, or every grant check
@@ -119,3 +257,7 @@ select has_schema_privilege('survey_app', 'survey', 'USAGE')   as survey_schema_
        has_schema_privilege('survey_app', 'platform', 'USAGE') as platform_schema_usage,
        has_table_privilege('survey_app', 'survey.visits', 'INSERT')              as visits_insert,
        has_table_privilege('survey_app', 'platform.user_app_access', 'SELECT')   as grants_select;
+
+-- The eight roles of this app, with what each may do.
+select role_code, string_agg(capability, ', ' order by capability) as capabilities
+  from survey.role_capabilities where allowed group by role_code order by role_code;

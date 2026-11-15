@@ -13,7 +13,7 @@
 | `pa-web` service (port 8095, localhost only) | The whole app: pages + API, **sole DB writer for schema `survey`** | services/textiles-api — plain Node, no framework, `pg` only, Docker, external `supabase` network |
 | Supabase Auth (GoTrue, existing stack) | Employee email + password verification | textiles per-user email logins |
 | Postgres (existing stack) | Schema `survey` + `platform.user_app_access` grants | one DB, multiple schemas; per-app DB role as second wall |
-| platform-admin (existing service, 8092) | App registration + this app's admins; app-level `/admin` for this app's people | two-tier admin, as deployed for textiles 2026-11-11 |
+| platform-admin (existing service, 8092) | App registration + this app's admin (the platform admin adds only the app admin). The app admin (who also acts as HR) and the HR role add employees on the **Staff & HR** page (`/staff`, served only to them); pa-web forwards login creation, role changes and disabling to platform-admin's app surface, which holds the only Auth service key. No `/admin` page on pa.plotfarms.com (owner decision 2026-11-14) | two-tier admin, as deployed for textiles 2026-11-11 |
 | Uploads volume (VPS) | A10 sample photos, served only through authenticated pa-web routes | textiles invoices volume pattern — files never on public URLs |
 
 ## 2. Request flow
@@ -47,6 +47,16 @@ Modelled on Textiles Architecture v0.2 §8, per component:
 | Photo uploads (A10) | **T**ampering — malicious or oversized file uploaded as a "sample photo"; **I**nformation disclosure — bill-book photos are business-sensitive | Image types + size limit enforced server-side; files stored outside any public path with generated names; served only via authenticated pa-web route after ownership/role check; no public or signed-forever URLs |
 | Public home page + Telegram link | **S**poofing — a look-alike bot/link harvesting users | The only Telegram link published is the official https://t.me/ypa25bot; no bot token or credential exists in web code; bot tokens stay server-side in their own services |
 | VPS / Caddy | **D**enial of service; data loss | Rate limiting on login + public endpoints; container bound to localhost, only Caddy exposed; daily Postgres backup (existing stack routine) + uploads volume in the same backup |
+
+## 5a. Staff & HR addition (owner decision 2026-11-14) — STRIDE
+
+| Component | Main threats (STRIDE) | Mitigations |
+|---|---|---|
+| Staff & HR page + API | **E**levation — an employee or manager reaching HR functions; HR making itself or others admin / HR | Page and every `/api/staff`, `/api/offers`, `/api/org` call are capability-checked server-side; the admin role cannot be assigned or changed from the app at all; only the admin can assign or change the HR role; platform-admin independently refuses a non-admin touching an admin |
+| Employee profiles (`survey.employees`) | **I**nformation disclosure — salary, Aadhaar, PAN, bank account | Admin / HR only; Aadhaar, PAN and account number encrypted (AES-256-GCM) with a key that exists only in pa-web's server `.env`; lists show last four characters; nothing sensitive is logged |
+| Login creation | **S**poofing / **E**levation — pa-web gaining the power to mint logins | pa-web holds no Auth service key and cannot write `platform.*`; it forwards the signed-in person's own JWT to platform-admin, which re-checks the caller and writes `platform.access_audit` |
+| Offer letters | **T**ampering / **R**epudiation — a letter changed after issue, or "who issued this" | Letters are insert-only; the company details are frozen into each letter; `created_by` and time recorded |
+| HR role vs survey data | **I**nformation disclosure — HR reading businesses' survey answers | HR has no survey capability: `/feedback` redirects away and the visits, dashboard and export APIs return 403 |
 
 ## 6. Gate checklist
 

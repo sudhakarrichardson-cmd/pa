@@ -50,5 +50,11 @@ else
   echo "PASS  no survey content on the public home page"
 fi
 
+if grep -qiE "aadhaar|temporary password|offer letter" services/pa-web/src/feedback.html services/pa-web/src/home.html services/pa-web/src/login.html; then
+  echo "FAIL  Staff & HR markup found outside staff.html"; FAIL=1
+else
+  echo "PASS  Staff & HR markup only in staff.html"
+fi
+
 if [ "$FAIL" = 0 ]; then echo "VERIFY OK"; else echo "VERIFY FAILED"; fi
 exit $FAIL

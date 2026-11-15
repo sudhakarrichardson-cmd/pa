@@ -77,6 +77,21 @@ if [ "$API" = 401 ]; then pass "GET /api/visits logged out = 401"; else fail "GE
 DASH=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "$BASE/api/dashboard")
 if [ "$DASH" = 401 ]; then pass "GET /api/dashboard logged out = 401"; else fail "GET /api/dashboard logged out = $DASH (want 401)"; fi
 
+for path in /api/staff /api/offers /api/offers/1/pdf /api/org; do
+  CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "$BASE$path")
+  if [ "$CODE" = 401 ]; then pass "GET $path logged out = 401"; else fail "GET $path logged out = $CODE (want 401)"; fi
+done
+STAFF=$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' --max-time 5 "$BASE/staff")
+case "$STAFF" in
+  "302 "*"/login") pass "GET /staff logged out = 302 to /login" ;;
+  *) fail "GET /staff logged out = $STAFF (want 302 to /login)" ;;
+esac
+if curl -s --max-time 5 "$BASE/" "$BASE/login" | grep -qiE "aadhaar|offer letter|monthly salary"; then
+  fail "a public page contains Staff & HR markup"
+else
+  pass "public pages contain no Staff & HR markup"
+fi
+
 # 5. login fails closed when auth/DB are unreachable
 LOGIN=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 -X POST "$BASE/api/login" \
   -H 'Content-Type: application/json' -d '{"email":"nobody@example.com","password":"wrong-password"}')

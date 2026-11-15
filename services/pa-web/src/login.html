@@ -4,11 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Employee Login — PlotFarms PA</title>
+<link rel="icon" type="image/png" href="/assets/favicon.png">
 <style>
   :root { --bg:#0d0b08; --panel:#171310; --gold:#c9a227; --gold2:#e8c95a; --text:#f3ead8; --muted:#b8ab90; --line:#33291a; --err:#e08a8a; }
   * { box-sizing:border-box; margin:0; padding:0; }
   body { background:var(--bg); color:var(--text); font-family:Arial,sans-serif; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; }
   .card { background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:34px 30px; width:100%; max-width:400px; }
+  .logo { display:block; width:110px; height:110px; margin:0 auto 12px; border-radius:14px; }
   .brand { font-family:Georgia,serif; font-size:26px; color:var(--gold2); text-align:center; }
   .brand small { display:block; font-size:11px; color:var(--muted); letter-spacing:2px; margin-top:2px; }
   h1 { font-family:Georgia,serif; font-size:20px; text-align:center; margin:22px 0 6px; }
@@ -25,7 +27,7 @@
 </head>
 <body>
   <div class="card">
-    <div class="brand">PlotFarms<small>PERSONAL ASSISTANT</small></div>
+    <a href="/"><img class="logo" src="/assets/logo.webp" alt="Personal Assistant by Plotfarms.com" width="110" height="110"></a>
     <h1>Employee Login</h1>
     <p class="note">Employees only. The Business Feedback survey opens after you sign in with your PlotFarms login.</p>
     <form id="loginForm">
