@@ -2,6 +2,9 @@
 /*
  * Telegram bot for pa-web — employees ask about their survey visits;
  * managers get dashboard counts; freeform questions go to MiniMax AI.
+ * Chats that are NOT linked to an employee login are handed to the
+ * consumer messaging layer (router.js, passed in by server.js): this
+ * is the same public PA bot (@ypa25bot) that PA users talk to.
  *
  * Routes registered in server.js:
  *   POST /api/telegram/webhook  — Telegram pushes updates here
@@ -44,6 +47,12 @@ async function sendMessage(chatId, text, extra = {}) {
   return tgCall('sendMessage', { chat_id: chatId, text, parse_mode: 'HTML', ...extra });
 }
 
+// Plain-text send for PA consumer replies (router.js) — the text can
+// contain user-supplied names/items, so no HTML parse mode.
+async function sendPlain(chatId, text) {
+  return tgCall('sendMessage', { chat_id: chatId, text });
+}
+
 // Register the webhook URL with Telegram (idempotent — safe to call on startup).
 async function setupWebhook() {
   if (!BOT_TOKEN) return;
@@ -76,7 +85,7 @@ async function askLLM(systemPrompt, userMessage) {
 }
 
 // ---- DB helpers -------------------------------------------------------
-module.exports = function registerTelegram(pool, auth) {
+module.exports = function registerTelegram(pool, auth, paRouter) {
   const q = (sql, params) => pool.query(sql, params);
 
   // Look up the survey grant for a user_id (mirrors auth.js grantFor).
@@ -274,14 +283,28 @@ module.exports = function registerTelegram(pool, auth) {
     try {
       const cmd = text.split(' ')[0].toLowerCase().replace(/@.*$/, '');
 
-      if (cmd === '/start') { await handleStart(chatId); return; }
       if (cmd === '/link')  { await handleLink(chatId);  return; }
 
-      const user = await resolveSession(chatId);
+      const user = await resolveSession(chatId).catch(() => null);
+
+      if (cmd === '/start' && user) { await handleStart(chatId); return; }
+
       if (!user) {
-        await sendMessage(chatId,
-          '🔒 Your Telegram is not linked to a PA account yet.\n' +
-          'Send /link to connect.');
+        // Not a linked employee. This bot is ALSO the public PA bot
+        // (@ypa25bot, linked from the home page): hand the chat to the
+        // consumer messaging layer (router.js), which registers PA
+        // users and serves their requests. Employees can still send
+        // /link at any time to connect their employee login.
+        if (paRouter) {
+          const out = await paRouter.handleMessage({
+            channel: 'telegram', chatRef: String(chatId), text,
+          });
+          for (const r of (out.replies || [])) await sendPlain(chatId, r);
+        } else {
+          await sendMessage(chatId,
+            '🔒 Your Telegram is not linked to a PA account yet.\n' +
+            'Send /link to connect.');
+        }
         return;
       }
 

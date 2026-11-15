@@ -16,6 +16,12 @@
  *          those roles — its markup never reaches other employees.
  *
  * This service is the sole writer to schema `survey` (see visits.js).
+ *
+ * Messaging layer (consumer PA, migration 023): POST /api/pa/inbound
+ * is the gateways' entry to the PA router (router.js + apps.js, schema
+ * `pa`); Telegram chats that are not linked to an employee login are
+ * served by the same router inside telegram.js. The app registry is
+ * managed at /api/pa/apps (admin; list for managers).
  */
 const http = require('http');
 const fs = require('fs');
@@ -32,6 +38,8 @@ const registerDashboard = require('./dashboard');
 const registerStaff = require('./staff');
 const registerOffers = require('./offers');
 const registerTelegram = require('./telegram');
+const registerApps = require('./apps');
+const registerRouter = require('./router');
 
 const PORT = parseInt(process.env.PORT || '8095', 10);
 
@@ -54,7 +62,9 @@ const visitsHandler = registerVisits(pool, auth);
 const dashboardHandler = registerDashboard(pool);
 const staffHandler = registerStaff(pool, auth);
 const offersHandler = registerOffers(pool);
-const telegramHandler = registerTelegram(pool, auth);
+const paApps = registerApps(pool);
+const paRouter = registerRouter(pool);
+const telegramHandler = registerTelegram(pool, auth, paRouter);
 
 // Who does survey work, and who gets the Staff & HR page.
 const canVisits = user => auth.can(user, 'fill_visits') || auth.can(user, 'view_all_visits');
@@ -150,6 +160,35 @@ const server = http.createServer(async (req, res) => {
       await telegramHandler.handleLinkConfirm(req, res, user); return;
     }
 
+    /* ---------------- PA messaging layer (gateway inbound) ----------------
+     * The platform gateways (wa-gateway, telegram-gateway) are
+     * transport-only: they POST each consumer message here in the same
+     * shape the textiles /inbound contract uses, and send the returned
+     * replies back on the user's channel. Authenticated by the shared
+     * PA_INBOUND_SECRET header; fails closed when it is not set. This
+     * route must stay BEFORE the gated /api/* block below. */
+    if (req.method === 'POST' && p === '/api/pa/inbound') {
+      const expected = process.env.PA_INBOUND_SECRET || '';
+      if (!expected) { json(res, 503, { error: 'PA inbound not configured' }); return; }
+      if ((req.headers['x-pa-secret'] || '') !== expected) {
+        json(res, 403, { error: 'bad secret' }); return;
+      }
+      let body;
+      try { body = await auth.readBody(req, 512 * 1024); }
+      catch { json(res, 400, { error: 'bad request' }); return; }
+      if (!body.channel || !body.user_ref || typeof body.text !== 'string') {
+        json(res, 400, { error: 'channel, user_ref and text are required' }); return;
+      }
+      const out = await paRouter.handleMessage({
+        channel: String(body.channel), chatRef: String(body.user_ref),
+        text: body.text,
+      });
+      json(res, 200, {
+        replies: (out.replies || []).map(t => ({ type: 'text', body: t })),
+      });
+      return;
+    }
+
     /* ---------------- gated API ---------------- */
     if (p.startsWith('/api/')) {
       const user = await auth.requireAuth(req, res);
@@ -166,6 +205,62 @@ const server = http.createServer(async (req, res) => {
           can_staff: canStaff(user),
           is_admin: user.caps.includes('*'),
         });
+        return;
+      }
+      if (p === '/api/pa/apps' || p.startsWith('/api/pa/apps/')) {
+        // PA app registry (messaging layer). List: managers. Changes:
+        // app admin only. Secrets are never accepted or returned here —
+        // a registration names the env var that holds the secret.
+        const isAdmin = user.caps.includes('*');
+        if (req.method === 'GET' && p === '/api/pa/apps') {
+          if (!auth.can(user, 'view_dashboard') && !isAdmin) {
+            json(res, 403, { error: 'manager access only' }); return;
+          }
+          const rows = await paApps.listApps();
+          json(res, 200, {
+            apps: rows.map(a => ({ ...a, endpoint_url: a.endpoint_url ? 'set' : '' })),
+          });
+          return;
+        }
+        if (!isAdmin) { json(res, 403, { error: 'admin access only' }); return; }
+        if (req.method === 'POST' && p === '/api/pa/apps') {
+          let b;
+          try { b = await auth.readBody(req); }
+          catch { json(res, 400, { error: 'bad request' }); return; }
+          if (!b.app_id || !b.app_name || !b.app_type) {
+            json(res, 400, { error: 'app_id, app_name and app_type are required' }); return;
+          }
+          const row = await paApps.registerApp(b);
+          json(res, 200, { ok: true, ...row });
+          return;
+        }
+        const mTest = p.match(/^\/api\/pa\/apps\/([^/]+)\/test$/);
+        if (req.method === 'POST' && mTest) {
+          const app = await paApps.getApp(decodeURIComponent(mTest[1]));
+          if (!app) { json(res, 404, { error: 'app not found' }); return; }
+          const answer = await paApps.testApp(app);
+          if (!answer) {
+            json(res, 502, { ok: false, error: 'app did not answer check_availability' });
+            return;
+          }
+          await paApps.setStatus(app.app_id, 'active');
+          json(res, 200, { ok: true, status: 'active' });
+          return;
+        }
+        const mStatus = p.match(/^\/api\/pa\/apps\/([^/]+)\/status$/);
+        if (req.method === 'POST' && mStatus) {
+          let b;
+          try { b = await auth.readBody(req); }
+          catch { json(res, 400, { error: 'bad request' }); return; }
+          if (!['pending', 'active', 'inactive'].includes(b.status)) {
+            json(res, 400, { error: 'status must be pending, active or inactive' }); return;
+          }
+          const row = await paApps.setStatus(decodeURIComponent(mStatus[1]), b.status);
+          if (!row) { json(res, 404, { error: 'app not found' }); return; }
+          json(res, 200, { ok: true, ...row });
+          return;
+        }
+        json(res, 404, { error: 'not found' });
         return;
       }
       if (p === '/api/dashboard' || p === '/api/export.csv') {
