@@ -53,6 +53,27 @@ async function sendPlain(chatId, text) {
   return tgCall('sendMessage', { chat_id: chatId, text });
 }
 
+// Send a PDF buffer as a document (invoice delivery via relay).
+// Uses Node 20 built-in FormData — no extra deps needed.
+async function sendDocumentBuffer(chatId, buffer, filename, caption) {
+  if (!BOT_TOKEN) return null;
+  try {
+    const form = new FormData();
+    form.append('chat_id', String(chatId));
+    form.append('document', new Blob([buffer], { type: 'application/pdf' }), filename);
+    if (caption) {
+      form.append('caption', caption);
+      form.append('parse_mode', 'HTML');
+    }
+    const r = await fetch(`${TG_API}/sendDocument`, {
+      method: 'POST',
+      body: form,
+      signal: AbortSignal.timeout(30000),
+    }).catch(() => null);
+    return r && r.ok ? r.json().catch(() => null) : null;
+  } catch { return null; }
+}
+
 // Register the webhook URL with Telegram (idempotent — safe to call on startup).
 async function setupWebhook() {
   if (!BOT_TOKEN) return;
@@ -388,8 +409,23 @@ module.exports = function registerTelegram(pool, auth, paRouter) {
     }
   }
 
+  // Send a PDF document to a PA user by their pa.users.id.
+  // buffer is a Buffer of PDF bytes. Returns { ok, error? }.
+  async function sendDocumentToUser(paUserId, buffer, filename, caption) {
+    try {
+      const r = await q(
+        'SELECT telegram_chat_id FROM pa.users WHERE id=$1 AND active=true', [paUserId]);
+      const chatId = r.rows[0]?.telegram_chat_id;
+      if (!chatId) return { ok: false, error: 'user has no telegram' };
+      const result = await sendDocumentBuffer(chatId, buffer, filename, caption);
+      return result ? { ok: true } : { ok: false, error: 'telegram sendDocument failed' };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  }
+
   // Register the webhook with Telegram on startup
   setupWebhook().catch(e => console.error('telegram setup error:', e.message));
 
-  return { handleWebhook, handleLinkConfirm, sendToUser };
+  return { handleWebhook, handleLinkConfirm, sendToUser, sendDocumentToUser };
 };

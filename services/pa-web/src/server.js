@@ -216,7 +216,7 @@ const server = http.createServer(async (req, res) => {
       let body;
       try { body = await auth.readBody(req); }
       catch { json(res, 400, { error: 'bad request' }); return; }
-      const { user_ref, invoice_no, amount, store_name } = body || {};
+      const { user_ref, invoice_no, amount, store_name, pdf_base64, pdf_filename } = body || {};
       if (!user_ref || !invoice_no) {
         json(res, 400, { error: 'user_ref and invoice_no are required' }); return;
       }
@@ -224,16 +224,28 @@ const server = http.createServer(async (req, res) => {
       if (!paUserId) { json(res, 400, { error: 'invalid user_ref' }); return; }
       const amt = Number(amount || 0);
       const amtStr = amt > 0 ? `₹${amt.toFixed(2)}` : '';
-      const msg = [
-        `🧾 Your order has been approved!`,
-        ``,
-        `Invoice: ${invoice_no}`,
-        amtStr ? `Amount: ${amtStr}` : null,
-        ``,
-        `The store will contact you to confirm delivery and payment.`,
-        store_name ? `— ${store_name}` : null,
-      ].filter(l => l !== null).join('\n');
-      const result = await telegramHandler.sendToUser(paUserId, msg);
+      let result;
+      if (pdf_base64 && pdf_filename) {
+        // Send the invoice as a PDF document with a caption line.
+        const buf = Buffer.from(pdf_base64, 'base64');
+        const caption = [
+          `🧾 Your bill from <b>${store_name || 'the store'}</b>`,
+          `Invoice: ${invoice_no}`,
+          amtStr ? `Amount: ${amtStr}` : null,
+        ].filter(l => l !== null).join('\n');
+        result = await telegramHandler.sendDocumentToUser(paUserId, buf, pdf_filename, caption);
+      } else {
+        const msg = [
+          `🧾 Your order has been approved!`,
+          ``,
+          `Invoice: ${invoice_no}`,
+          amtStr ? `Amount: ${amtStr}` : null,
+          ``,
+          `The store will contact you to confirm delivery and payment.`,
+          store_name ? `— ${store_name}` : null,
+        ].filter(l => l !== null).join('\n');
+        result = await telegramHandler.sendToUser(paUserId, msg);
+      }
       json(res, result.ok ? 200 : 422, result);
       return;
     }

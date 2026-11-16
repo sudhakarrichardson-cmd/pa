@@ -95,11 +95,25 @@ function createApps(deps) {
   // Only ever called after the user confirmed the quote to PA.
   // paRequestId is the idempotency key: the app must not create a
   // second order if it sees the same key again.
+  //
+  // invoice_callback_url: after the owner approves and sets the final
+  // price, the app POSTs { user_ref, invoice_no, amount, store_name }
+  // (and optionally pdf_base64/pdf_filename) to this URL with the same
+  // x-pa-secret header, and PA delivers it to the customer via Telegram.
+  //
+  // allow_price_adjustment: true tells the app that the owner may edit
+  // the quoted rates before approving (actual stock prices may differ).
   async function placeOrder(app, user, items, paRequestId) {
-    const out = await callApp(app, {
+    const baseUrl = (env.PA_BASE_URL || '').replace(/\/$/, '');
+    const payload = {
       request: 'place_order', pa_request_id: paRequestId,
       pa_user: paUser(user), items,
-    });
+      allow_price_adjustment: true,
+    };
+    if (baseUrl) {
+      payload.invoice_callback_url = `${baseUrl}/api/pa/relay/invoice`;
+    }
+    const out = await callApp(app, payload);
     return out && out.app_order_id ? out : null;
   }
 
