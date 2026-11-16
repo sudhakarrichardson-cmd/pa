@@ -129,7 +129,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && p === '/api/logout') { auth.logout(req, res); return; }
     if (req.method === 'GET' && p === '/login') {
       const user = await auth.requireAuth(req, res);
-      if (user) { res.writeHead(302, { Location: '/survey' }); res.end(); return; }
+      if (user) { res.writeHead(302, { Location: '/' }); res.end(); return; }
       sendHtml(res, 200, PAGES.login);
       return;
     }

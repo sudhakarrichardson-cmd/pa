@@ -57,7 +57,7 @@
         body: JSON.stringify(payload),
       });
       const data = await r.json().catch(() => ({}));
-      if (r.ok && data.ok) { window.location.href = '/feedback'; return; }
+      if (r.ok && data.ok) { window.location.href = '/'; return; }
       err.textContent = data.error || 'Login failed. Check your email and password.';
     } catch {
       err.textContent = 'Could not reach the server. Try again.';
