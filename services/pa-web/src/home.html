@@ -70,7 +70,7 @@
       <a href="#how">How It Works</a>
       <a href="#ai">AI Assistant</a>
       <a href="https://t.me/ypa25bot" target="_blank" rel="noopener">Telegram</a>
-      <a class="btn ghost" href="/login">Employee Login</a>
+      <span id="emp-nav"><a class="btn ghost" href="/login">Employee Login</a></span>
       <a class="btn" href="https://t.me/ypa25bot" target="_blank" rel="noopener">Chat with PA</a>
     </nav>
   </div>
@@ -154,7 +154,7 @@
       <p>One call or one message — and we handle everything. No apps to download, no accounts to create.</p>
       <div class="cta-row">
         <a class="btn" href="https://t.me/ypa25bot" target="_blank" rel="noopener">✈️ Chat on Telegram</a>
-        <a class="btn ghost" href="/login">Employee Login</a>
+        <span id="emp-cta"><a class="btn ghost" href="/login">Employee Login</a></span>
       </div>
       <p class="phone">1-800-PLOTFARMS</p>
     </div>
@@ -166,9 +166,26 @@
     <span>© PlotFarms — Your Personal Assistant for Everything</span>
     <span style="margin-left:auto; display:flex; gap:16px;">
       <a href="https://t.me/ypa25bot" target="_blank" rel="noopener">Telegram @ypa25bot</a>
-      <a href="/login">Employee Login</a>
+      <span id="emp-footer"><a href="/login">Employee Login</a></span>
     </span>
   </div>
 </footer>
+<script>
+(async () => {
+  try {
+    const s = await fetch('/api/session').then(r => r.json());
+    if (!s.loggedIn) return;
+    const loggedInHtml = (s.canSurvey ? '<a class="btn ghost" href="/feedback">Survey</a> ' : '') +
+                         (s.canStaff  ? '<a class="btn ghost" href="/staff">Staff</a> ' : '') +
+                         '<a class="btn ghost" href="#" onclick="fetch(\'/api/logout\',{method:\'POST\'}).then(()=>location.reload());return false">Sign Out</a>';
+    const footerHtml = (s.canSurvey ? '<a href="/feedback">Survey</a> ' : '') +
+                       (s.canStaff  ? '<a href="/staff">Staff</a> ' : '') +
+                       '<a href="#" onclick="fetch(\'/api/logout\',{method:\'POST\'}).then(()=>location.reload());return false">Sign Out</a>';
+    document.getElementById('emp-nav').innerHTML   = loggedInHtml;
+    document.getElementById('emp-cta').innerHTML   = loggedInHtml;
+    document.getElementById('emp-footer').innerHTML = footerHtml;
+  } catch {}
+})();
+</script>
 </body>
 </html>

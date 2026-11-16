@@ -116,6 +116,13 @@ const server = http.createServer(async (req, res) => {
       }
     }
     if (req.method === 'GET' && p === '/') { sendHtml(res, 200, PAGES.home); return; }
+    if (req.method === 'GET' && p === '/api/session') {
+      const u = await auth.requireAuth(req, res);
+      json(res, 200, u
+        ? { loggedIn: true, canSurvey: canVisits(u), canStaff: canStaff(u) }
+        : { loggedIn: false });
+      return;
+    }
     if (req.method === 'POST' && p === '/api/login') { await auth.login(req, res); return; }
     if (req.method === 'POST' && p === '/api/logout') { auth.logout(req, res); return; }
     if (req.method === 'GET' && p === '/login') {
