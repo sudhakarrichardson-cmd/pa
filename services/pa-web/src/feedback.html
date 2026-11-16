@@ -146,13 +146,16 @@
       <button class="ghost" id="listBtn" type="button">Save &amp; exit</button>
       <button id="nextBtn" type="button">Next →</button>
       <button id="submitBtn" type="button" class="hidden">Submit visit</button>
+      <button id="saveChangesBtn" type="button" class="hidden">Save changes</button>
     </div>
 
-    <!-- Part C panel (only for a submitted visit) -->
+    <!-- Part C panel (shown for submitted + completed visits) -->
     <div id="partCPanel" class="hidden">
-      <h2>Part C — Engineer wrap-up (internal, after the visit)</h2>
+      <h2 id="partCTitle">Part C — Engineer wrap-up (internal, after the visit)</h2>
       <div class="card" id="partCBody"></div>
-      <p><button id="wrapupBtn" type="button">Save wrap-up &amp; complete visit</button></p>
+      <div class="okmsg" id="partCOk"></div>
+      <div class="error" id="partCError"></div>
+      <p><button id="wrapupBtn" type="button">Save wrap-up</button></p>
     </div>
   </div>
 </div>
@@ -604,7 +607,7 @@ function pendingBackups() {
 }
 
 async function saveDraft() {
-  if (!current || current.status === 'completed') return;
+  if (!current) return;
   captureLocal();
   if (saving) { saveAgain = true; return; }       // picked up when the running save ends
   if (current.id && !dirty) return;
@@ -650,12 +653,13 @@ async function saveDraft() {
 }
 
 function scheduleSave() {
-  if (!current || current.status === 'completed') return;
+  if (!current) return;
   captureLocal();
   editSeq += 1;
   dirty = true;
-  if (current.status !== 'draft') return;
-  backupLocal();
+  if (current.status === 'draft') {
+    backupLocal();
+  }
   $('saveState').textContent = 'Unsaved changes…';
   clearTimeout(saveTimer);
   saveTimer = setTimeout(saveDraft, 1200);
@@ -718,9 +722,11 @@ function renderStep() {
   }
 
   body.innerHTML = html;
+  const isCompleted = current && current.status === 'completed';
   $('backBtn').disabled = step === 0;
   $('nextBtn').classList.toggle('hidden', step === STEPS.length - 1);
-  $('submitBtn').classList.toggle('hidden', step !== STEPS.length - 1);
+  $('submitBtn').classList.toggle('hidden', step !== STEPS.length - 1 || isCompleted);
+  $('saveChangesBtn').classList.toggle('hidden', !isCompleted);
 
   body.querySelectorAll('input, select, textarea').forEach(el => {
     el.addEventListener('change', scheduleSave);
@@ -842,7 +848,25 @@ function renderPartC() {
   const panel = $('partCPanel');
   if (!current || !current.id || current.status === 'draft') { panel.classList.add('hidden'); return; }
   panel.classList.remove('hidden');
+  $('partCTitle').textContent = current.status === 'completed'
+    ? 'Part C — Engineer wrap-up (editable)'
+    : 'Part C — Engineer wrap-up (fill after leaving the shop)';
+  $('wrapupBtn').textContent = current.status === 'completed' ? 'Save Part C changes' : 'Save wrap-up & complete visit';
   $('partCBody').innerHTML = PART_C.map(f => fieldHtml(f, 'c', current.part_c || {})).join('');
+  $('partCOk').style.display = 'none';
+  $('partCError').style.display = 'none';
+  // Wire Other-specify toggles inside Part C
+  $('partCBody').querySelectorAll('input[type="checkbox"][value="Other"], select[data-scope]').forEach(el => {
+    el.addEventListener('change', () => {
+      $('partCBody').querySelectorAll('.other-specify').forEach(inp => {
+        const ps = inp.dataset.parentScope; const pk = inp.dataset.parentKey;
+        const cb = $('partCBody').querySelector(`input[type="checkbox"][data-scope="${ps}"][data-key="${pk}"][value="Other"]`);
+        const sel = $('partCBody').querySelector(`select[data-scope="${ps}"][data-key="${pk}"]`);
+        const show = cb ? cb.checked : (sel ? sel.value === 'Other' : false);
+        inp.classList.toggle('hidden', !show);
+      });
+    });
+  });
 }
 
 async function loadVisits() {
@@ -853,7 +877,10 @@ async function loadVisits() {
       `<td>${esc(TYPE_LABEL[v.business_type] || '')}</td><td>${esc(v.town || '')}</td>` +
       `<td><span class=”pill ${esc(v.status)}”>${esc(v.status)}</span></td>` +
       `<td>${esc(v.submitted_by || '')}</td>` +
-      `<td><button type=”button” class=”ghost” data-open=”${v.id}”>${v.status === 'draft' ? 'Continue' : 'Open'}</button></td></tr>`).join('')
+      (v.status === 'completed'
+        ? `<td><a class=”btn ghost” href=”/api/visits/${v.id}/pdf” target=”_blank” rel=”noopener” style=”font-size:13px;padding:6px 11px;”>PDF</a> <button type=”button” class=”ghost” data-open=”${v.id}” style=”margin-left:4px;”>Edit</button></td>`
+        : `<td><button type=”button” class=”ghost” data-open=”${v.id}”>${v.status === 'draft' ? 'Continue' : 'Open'}</button></td>`)
+    ).join('')
       : '<tr><td colspan=”7” style=”color:var(--muted);”>No visits yet. Start with “+ New visit”.</td></tr>';
     document.querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', async () => {
       try { openWizard(await api('/api/visits/' + b.dataset.open)); }
@@ -958,7 +985,8 @@ $('submitBtn').addEventListener('click', async () => {
   } catch (e) { showError('wizError', e.message); }
 });
 $('wrapupBtn').addEventListener('click', async () => {
-  showError('wizError', '');
+  showError('partCError', '');
+  $('partCOk').style.display = 'none';
   try {
     const c = readScope('c');
     const body = Object.assign({}, c, {
@@ -969,7 +997,17 @@ $('wrapupBtn').addEventListener('click', async () => {
     });
     current = await api('/api/visits/' + current.id + '/wrapup', { method: 'POST', body: JSON.stringify(body) });
     $('wizTitle').textContent = `Visit #${current.id} (completed)`;
-    $('wizOk').textContent = 'Wrap-up saved — visit completed.';
+    $('partCOk').textContent = 'Part C saved.';
+    $('partCOk').style.display = 'block';
+    renderPartC();
+  } catch (e) { showError('partCError', e.message); }
+});
+$('saveChangesBtn').addEventListener('click', async () => {
+  showError('wizError', '');
+  $('wizOk').style.display = 'none';
+  try {
+    await saveDraft();
+    $('wizOk').textContent = 'Changes saved.';
     $('wizOk').style.display = 'block';
   } catch (e) { showError('wizError', e.message); }
 });
