@@ -40,6 +40,7 @@ const registerOffers = require('./offers');
 const registerTelegram = require('./telegram');
 const registerApps = require('./apps');
 const registerRouter = require('./router');
+const registerIssues = require('./issues');
 
 const PORT = parseInt(process.env.PORT || '8095', 10);
 
@@ -65,6 +66,7 @@ const offersHandler = registerOffers(pool);
 const paApps = registerApps(pool);
 const paRouter = registerRouter(pool);
 const telegramHandler = registerTelegram(pool, auth, paRouter);
+const issuesHandler = registerIssues(pool, auth);
 
 // Who does survey work, and who gets the Staff & HR page.
 const canVisits = user => auth.can(user, 'fill_visits') || auth.can(user, 'view_all_visits');
@@ -127,13 +129,18 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && p === '/api/logout') { auth.logout(req, res); return; }
     if (req.method === 'GET' && p === '/login') {
       const user = await auth.requireAuth(req, res);
-      if (user) { res.writeHead(302, { Location: '/feedback' }); res.end(); return; }
+      if (user) { res.writeHead(302, { Location: '/survey' }); res.end(); return; }
       sendHtml(res, 200, PAGES.login);
       return;
     }
 
     /* ---------------- gated pages ---------------- */
+    // Legacy /feedback/* redirect — keep old bookmarks and deep-links working.
     if (req.method === 'GET' && (p === '/feedback' || p.startsWith('/feedback/'))) {
+      const dest = p === '/feedback' ? '/survey' : '/survey' + p.slice('/feedback'.length);
+      res.writeHead(301, { Location: dest }); res.end(); return;
+    }
+    if (req.method === 'GET' && (p === '/survey' || p.startsWith('/survey/'))) {
       const user = await auth.requireAuth(req, res);
       if (!user) { res.writeHead(302, { Location: '/login' }); res.end(); return; }
       // A role with no survey work (HR) lands on its own page instead.
@@ -146,7 +153,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && p === '/staff') {
       const user = await auth.requireAuth(req, res);
       if (!user) { res.writeHead(302, { Location: '/login' }); res.end(); return; }
-      if (!canStaff(user)) { res.writeHead(302, { Location: '/feedback' }); res.end(); return; }
+      if (!canStaff(user)) { res.writeHead(302, { Location: '/survey' }); res.end(); return; }
       // Sent only to the admin / HR — never to other employees.
       sendHtml(res, 200, PAGES.staff, { 'Cache-Control': 'no-store' });
       return;
@@ -321,6 +328,9 @@ const server = http.createServer(async (req, res) => {
         // Survey data: only roles that do survey work (HR does not).
         if (!canVisits(user)) { json(res, 403, { error: 'this role has no access to survey visits' }); return; }
         const handled = await visitsHandler(req, res, url, user);
+        if (handled) return;
+      } else if (p === '/api/issues' || p.startsWith('/api/issues/')) {
+        const handled = await issuesHandler(req, res, url, user);
         if (handled) return;
       }
       json(res, 404, { error: 'not found' });

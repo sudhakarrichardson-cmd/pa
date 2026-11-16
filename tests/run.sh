@@ -5,7 +5,8 @@
 #   1. node --check passes on every src/*.js
 #   2. GET /                 -> 200, and the public home page contains
 #                               NO survey form markup
-#   3. GET /feedback         -> 302 to /login when logged out
+#   3. GET /survey           -> 302 to /login when logged out
+#      GET /feedback         -> 301 to /survey (permanent redirect after rename)
 #   4. GET /api/visits       -> 401 when logged out
 #   5. POST /api/login       -> NOT 200 when auth/DB are unreachable
 # Usage: bash tests/run.sh    (ends with ALL TESTS PASSED on success)
@@ -64,11 +65,16 @@ else
   fail "GET / is missing the Telegram link"
 fi
 
-# 3. survey page is gated
+# 3. survey page is gated; /feedback redirects permanently to /survey
+SV=$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' --max-time 5 "$BASE/survey")
+case "$SV" in
+  "302 "*"/login") pass "GET /survey logged out = 302 to /login" ;;
+  *) fail "GET /survey logged out = $SV (want 302 to /login)" ;;
+esac
 FB=$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' --max-time 5 "$BASE/feedback")
 case "$FB" in
-  "302 "*"/login") pass "GET /feedback logged out = 302 to /login" ;;
-  *) fail "GET /feedback logged out = $FB (want 302 to /login)" ;;
+  "301 "*"/survey") pass "GET /feedback = 301 to /survey (renamed)" ;;
+  *) fail "GET /feedback = $FB (want 301 to /survey)" ;;
 esac
 
 # 4. API is gated

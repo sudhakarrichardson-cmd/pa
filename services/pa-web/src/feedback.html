@@ -60,6 +60,7 @@
   .upload-row .k { flex:1 1 220px; font-size:14.5px; }
   input[type=file] { font-size:13.5px; color:var(--muted); max-width:230px; }
   .hidden { display:none !important; }
+  .other-specify { margin-top:8px; }
   a { color:var(--gold2); }
 </style>
 </head>
@@ -88,8 +89,8 @@
       <h2 style="margin-top:0;">Visits</h2>
       <div style="overflow-x:auto;">
       <table>
-        <thead><tr><th>Date</th><th>Business</th><th>Type</th><th>Town</th><th>Status</th><th></th></tr></thead>
-        <tbody id="visitsBody"><tr><td colspan="6" style="color:var(--muted);">Loading…</td></tr></tbody>
+        <thead><tr><th>Date</th><th>Business</th><th>Type</th><th>Town</th><th>Status</th><th>Submitted by</th><th></th></tr></thead>
+        <tbody id="visitsBody"><tr><td colspan="7" style="color:var(--muted);">Loading…</td></tr></tbody>
       </table>
       </div>
     </div>
@@ -101,6 +102,32 @@
       <h2>Visits by type</h2>
       <div class="counts" id="dashTypes"></div>
       <p style="margin-top:18px;"><a class="btn ghost" href="/api/export.csv">⬇ Export CSV (Results Tracker columns)</a></p>
+    </div>
+
+    <!-- Issue reports (admin only) -->
+    <div id="issuesCard" class="card hidden">
+      <h2 style="margin-top:0;">Issue Reports</h2>
+      <div class="error" id="issuesError"></div>
+      <div id="issuesList">
+        <div style="overflow-x:auto;">
+        <table>
+          <thead><tr><th>Title</th><th>Severity</th><th>Submitted by</th><th>Status</th><th>Date</th><th></th></tr></thead>
+          <tbody id="issuesBody"><tr><td colspan="6" style="color:var(--muted);">Loading…</td></tr></tbody>
+        </table>
+        </div>
+      </div>
+      <div id="issueDetailCard" class="hidden" style="margin-top:16px;">
+        <h2 id="issueDetailTitle" style="margin-top:0;"></h2>
+        <dl class="review" id="issueDetailContent"></dl>
+        <div class="okmsg" id="issueDetailOk"></div>
+        <div class="error" id="issueDetailError"></div>
+        <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;">
+          <button id="analyzeBtn" type="button">Analyze with AI</button>
+          <button id="resolveBtn" type="button" class="ghost">Mark Resolved</button>
+          <button id="closeIssueBtn" type="button" class="ghost">← Back to list</button>
+        </div>
+        <div id="analysisResult" class="hidden" style="margin-top:14px;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:14px;white-space:pre-wrap;font-size:13.5px;color:var(--text);line-height:1.55;"></div>
+      </div>
     </div>
   </div>
 
@@ -171,7 +198,6 @@ const PART_A = [
     CHK('registration', '6. Registration', ['GSTIN', 'Trade licence', 'Udyam', 'None']),
     T('gstin', '6b. GSTIN (if any)'),
     CHK('languages', '7. Languages your customers speak', ['Telugu', 'English', 'Hindi', 'Other']),
-    T('languages_other', '7b. Other language'),
     T('shop_timings', '8. Shop timings (open–close, weekly holiday)'),
   ]},
   { id: 'A2', title: 'A2. People & daily operations', fields: [
@@ -196,7 +222,6 @@ const PART_A = [
     T('ch_app_count', '16f. Orders per day — through that app / platform'),
     T('ch_agents', '16g. Orders per day — Through staff / agents'),
     CHK('discovery', '17. How do NEW customers find you today?', ['Shop board', 'Word of mouth', 'Google search / maps', 'WhatsApp status / forwards', 'Ads / pamphlets', 'Other']),
-    T('discovery_other', '17b. Other — how?'),
     TA('busy_happens', '18. When the shop is busy, what happens to calls and messages?'),
     T('missed_per_week', '18b. Estimated orders / enquiries missed in a week', { type: 'number' }),
     TA('repeat_customers', '19. Regular / repeat customers: approx. how many? How do they re-order or come back today?'),
@@ -246,7 +271,6 @@ const PART_A = [
   ]},
   { id: 'A9', title: 'A9. Goal, decision & pilot', fields: [
     CHK('improve_first', '41. "If this system works well, what should improve first?"', ['More orders / clients', 'Fewer missed enquiries', 'Less time in billing / records', 'Better credit recovery', 'Less dependence on me', 'Other']),
-    T('improve_other', '41b. Other — what?'),
     T('extra_orders', '42. How many EXTRA orders / clients per month would make it clearly worth it?'),
     T('spend_ads', '43. Current monthly spend — ads / pamphlets ₹'),
     T('spend_software', '43b. Current monthly spend — software ₹'),
@@ -445,12 +469,28 @@ function fieldHtml(f, scope, values) {
   if (f.type === 'select') {
     const opts = ['<option value="">— select —</option>'].concat(f.options.map(o =>
       `<option value="${esc(o)}" ${v === o ? 'selected' : ''}>${esc((f.labels && f.labels[o]) || o)}</option>`)).join('');
-    return label + `<select id="${scope}_${f.k}" data-scope="${scope}" data-key="${f.k}">${opts}</select>`;
+    let html = label + `<select id="${scope}_${f.k}" data-scope="${scope}" data-key="${f.k}">${opts}</select>`;
+    if (f.options.includes('Other')) {
+      const ov = values ? values[f.k + '_other'] : undefined;
+      html += `<input type="text" class="other-specify${v === 'Other' ? '' : ' hidden'}" ` +
+        `data-scope="${scope}" data-key="${f.k}_other" ` +
+        `data-parent-scope="${scope}" data-parent-key="${f.k}" ` +
+        `placeholder="Please specify…" value="${esc(ov || '')}">`;
+    }
+    return html;
   }
   if (f.type === 'checks') {
     const arr = Array.isArray(v) ? v : [];
-    return label + '<div class="checks">' + f.options.map(o =>
+    let html = label + '<div class="checks">' + f.options.map(o =>
       `<label><input type="checkbox" data-scope="${scope}" data-key="${f.k}" value="${esc(o)}" ${arr.includes(o) ? 'checked' : ''}> ${esc(o)}</label>`).join('') + '</div>';
+    if (f.options.includes('Other')) {
+      const ov = values ? values[f.k + '_other'] : undefined;
+      html += `<input type="text" class="other-specify${arr.includes('Other') ? '' : ' hidden'}" ` +
+        `data-scope="${scope}" data-key="${f.k}_other" ` +
+        `data-parent-scope="${scope}" data-parent-key="${f.k}" ` +
+        `placeholder="Please specify…" value="${esc(ov || '')}">`;
+    }
+    return html;
   }
   return label + `<input type="${f.type || 'text'}" id="${scope}_${f.k}" data-scope="${scope}" data-key="${f.k}" value="${esc(v || '')}">`;
 }
@@ -695,6 +735,22 @@ function renderStep() {
     scheduleSave();
   }));
   body.querySelectorAll('[data-upload]').forEach(btn => btn.addEventListener('click', () => uploadPhoto(btn.dataset.upload)));
+
+  // Show/hide "other-specify" text inputs based on checkbox or select state.
+  const updateOtherInputs = () => {
+    body.querySelectorAll('.other-specify').forEach(inp => {
+      const ps = inp.dataset.parentScope;
+      const pk = inp.dataset.parentKey;
+      const cb = body.querySelector(`input[type="checkbox"][data-scope="${ps}"][data-key="${pk}"][value="Other"]`);
+      const sel = body.querySelector(`select[data-scope="${ps}"][data-key="${pk}"]`);
+      const show = cb ? cb.checked : (sel ? sel.value === 'Other' : false);
+      inp.classList.toggle('hidden', !show);
+    });
+  };
+  updateOtherInputs();
+  body.querySelectorAll('input[type="checkbox"][value="Other"], select[data-scope]').forEach(el => {
+    el.addEventListener('change', updateOtherInputs);
+  });
 }
 
 async function uploadPhoto(kind) {
@@ -729,6 +785,7 @@ function showList() {
   $('listView').classList.remove('hidden');
   loadVisits();
   if (me && me.can_dashboard) loadDashboard();
+  if (me && me.is_admin) loadIssues();
   showPendingNotice();
 }
 
@@ -794,9 +851,10 @@ async function loadVisits() {
     $('visitsBody').innerHTML = rows.length ? rows.map(v =>
       `<tr><td>${esc(String(v.visit_date || '').slice(0, 10))}</td><td>${esc(v.business_name || '(no name yet)')}</td>` +
       `<td>${esc(TYPE_LABEL[v.business_type] || '')}</td><td>${esc(v.town || '')}</td>` +
-      `<td><span class="pill ${esc(v.status)}">${esc(v.status)}</span></td>` +
-      `<td><button type="button" class="ghost" data-open="${v.id}">${v.status === 'draft' ? 'Continue' : 'Open'}</button></td></tr>`).join('')
-      : '<tr><td colspan="6" style="color:var(--muted);">No visits yet. Start with “+ New visit”.</td></tr>';
+      `<td><span class=”pill ${esc(v.status)}”>${esc(v.status)}</span></td>` +
+      `<td>${esc(v.submitted_by || '')}</td>` +
+      `<td><button type=”button” class=”ghost” data-open=”${v.id}”>${v.status === 'draft' ? 'Continue' : 'Open'}</button></td></tr>`).join('')
+      : '<tr><td colspan=”7” style=”color:var(--muted);”>No visits yet. Start with “+ New visit”.</td></tr>';
     document.querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', async () => {
       try { openWizard(await api('/api/visits/' + b.dataset.open)); }
       catch (e) { showError('listError', e.message); }
@@ -822,6 +880,60 @@ const ROLE_LABEL = { intern: 'Intern', trainee: 'Trainee', engineer: 'Engineer',
   manager: 'Manager', branch_manager: 'Branch Manager', hr: 'HR', owner: 'Admin' };
 const roleLabel = r => ROLE_LABEL[r] || r;
 
+/* ---------------- issues (admin only) ---------------- */
+const SEV_LABEL = { low: 'Low', medium: 'Medium', high: 'High', critical: 'Critical' };
+const SEV_DOT   = { low: '🟢', medium: '🟡', high: '🟠', critical: '🔴' };
+let currentIssue = null;
+
+async function loadIssues() {
+  try {
+    const d = await api('/api/issues');
+    $('issuesCard').classList.remove('hidden');
+    $('issueDetailCard').classList.add('hidden');
+    $('issuesList').classList.remove('hidden');
+    $('issuesBody').innerHTML = d.issues.length
+      ? d.issues.map(i =>
+          `<tr><td>${esc(i.title)}</td>` +
+          `<td>${SEV_DOT[i.severity] || ''} ${esc(SEV_LABEL[i.severity] || i.severity)}</td>` +
+          `<td>${esc(i.submitted_by)}</td>` +
+          `<td><span class="pill ${esc(i.status)}">${esc(i.status)}</span></td>` +
+          `<td>${esc(String(i.created_at || '').slice(0, 10))}</td>` +
+          `<td><button type="button" class="ghost" data-issue="${i.id}">View</button></td></tr>`
+        ).join('')
+      : '<tr><td colspan="6" style="color:var(--muted);">No issues reported yet.</td></tr>';
+    document.querySelectorAll('[data-issue]').forEach(btn =>
+      btn.addEventListener('click', () => openIssueDetail(Number(btn.dataset.issue)))
+    );
+  } catch (e) { showError('issuesError', e.message); }
+}
+
+async function openIssueDetail(id) {
+  showError('issueDetailError', '');
+  showError('issuesError', '');
+  try {
+    currentIssue = await api('/api/issues/' + id);
+    $('issueDetailTitle').textContent = currentIssue.title;
+    const c = currentIssue;
+    $('issueDetailContent').innerHTML =
+      `<dt>Severity</dt><dd>${SEV_DOT[c.severity] || ''} ${esc(SEV_LABEL[c.severity] || c.severity)}</dd>` +
+      `<dt>Status</dt><dd>${esc(c.status)}</dd>` +
+      `<dt>Reported by</dt><dd>${esc(c.submitted_by)}</dd>` +
+      `<dt>Area</dt><dd>${esc(c.area || '—')}</dd>` +
+      `<dt>Date</dt><dd>${esc(String(c.created_at || '').slice(0, 16).replace('T', ' '))}</dd>` +
+      `<dt>Description</dt><dd>${esc(c.description)}</dd>` +
+      (c.steps ? `<dt>Steps</dt><dd>${esc(c.steps)}</dd>` : '');
+    if (c.analysis && c.analysis.summary) {
+      $('analysisResult').textContent = c.analysis.summary;
+      $('analysisResult').classList.remove('hidden');
+    } else {
+      $('analysisResult').classList.add('hidden');
+    }
+    $('issueDetailOk').style.display = 'none';
+    $('issueDetailCard').classList.remove('hidden');
+    $('issuesList').classList.add('hidden');
+  } catch (e) { showError('issuesError', e.message); }
+}
+
 /* ---------------- wiring ---------------- */
 $('newVisitBtn').addEventListener('click', () => openWizard(null));
 $('backBtn').addEventListener('click', async () => { await saveDraft(); gotoStep(step - 1); });
@@ -840,10 +952,9 @@ $('submitBtn').addEventListener('click', async () => {
       throw new Error('Your answers are not sent yet — they are kept on this phone. Wait for "Draft saved", then tap Submit again.');
     }
     current = await api('/api/visits/' + current.id + '/submit', { method: 'POST', body: '{}' });
-    $('wizTitle').textContent = `Visit #${current.id} (submitted)`;
-    $('wizOk').textContent = 'Visit submitted. Fill Part C below when you have left the shop.';
+    $('wizOk').textContent = 'Visit submitted! Returning to survey home…';
     $('wizOk').style.display = 'block';
-    renderPartC();
+    setTimeout(() => showList(), 2000);
   } catch (e) { showError('wizError', e.message); }
 });
 $('wrapupBtn').addEventListener('click', async () => {
@@ -862,6 +973,38 @@ $('wrapupBtn').addEventListener('click', async () => {
     $('wizOk').style.display = 'block';
   } catch (e) { showError('wizError', e.message); }
 });
+$('closeIssueBtn').addEventListener('click', () => {
+  $('issueDetailCard').classList.add('hidden');
+  $('issuesList').classList.remove('hidden');
+});
+$('analyzeBtn').addEventListener('click', async () => {
+  if (!currentIssue) return;
+  showError('issueDetailError', '');
+  $('issueDetailOk').style.display = 'none';
+  $('analyzeBtn').disabled = true;
+  $('analyzeBtn').textContent = 'Analyzing…';
+  try {
+    const d = await api('/api/issues/' + currentIssue.id + '/analyze', { method: 'POST', body: '{}' });
+    $('analysisResult').textContent = d.analysis;
+    $('analysisResult').classList.remove('hidden');
+    $('issueDetailOk').textContent = 'Analysis complete. Copy the "Claude Code prompt" at the end and paste it into your terminal to begin the fix.';
+    $('issueDetailOk').style.display = 'block';
+    currentIssue.status = 'reviewed';
+  } catch (e) { showError('issueDetailError', e.message); }
+  finally { $('analyzeBtn').disabled = false; $('analyzeBtn').textContent = 'Analyze with AI'; }
+});
+$('resolveBtn').addEventListener('click', async () => {
+  if (!currentIssue) return;
+  showError('issueDetailError', '');
+  try {
+    await api('/api/issues/' + currentIssue.id + '/resolve', { method: 'POST', body: '{}' });
+    $('issueDetailOk').textContent = 'Issue marked as resolved.';
+    $('issueDetailOk').style.display = 'block';
+    currentIssue.status = 'resolved';
+    setTimeout(loadIssues, 1200);
+  } catch (e) { showError('issueDetailError', e.message); }
+});
+
 $('logoutBtn').addEventListener('click', async () => {
   if (!$('wizardView').classList.contains('hidden')) await saveDraft();
   await fetch('/api/logout', { method: 'POST' }).catch(() => {});
@@ -883,7 +1026,7 @@ window.addEventListener('pagehide', () => {
     $('whoami').textContent = `${me.email} · ${roleLabel(me.role)}`;
     if (me.can_staff) $('staffLink').classList.remove('hidden');
   } catch { return; } // api() already redirected to /login on 401
-  const m = window.location.pathname.match(/^\/feedback\/(\d+)$/);
+  const m = window.location.pathname.match(/^\/survey\/(\d+)$/);
   if (m) {
     try { openWizard(await api('/api/visits/' + m[1])); return; }
     catch (e) { showError('listError', e.message); }

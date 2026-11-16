@@ -170,16 +170,99 @@
     </span>
   </div>
 </footer>
+<!-- Issue report modal (shown only when employee is logged in) -->
+<div id="issueModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;overflow-y:auto;padding:20px 16px;">
+  <div style="max-width:580px;margin:40px auto;background:#171310;border:1px solid #33291a;border-radius:14px;padding:24px;">
+    <h2 style="font-family:Georgia,serif;font-size:21px;color:#e8c95a;margin:0 0 8px;">Report an Issue</h2>
+    <p style="color:#b8ab90;font-size:13.5px;margin-bottom:18px;">Found a bug or problem? Let us know and we will look into it.</p>
+    <div id="issueFormErr" style="display:none;background:#3a1717;border:1px solid #6e2b2b;color:#e08a8a;border-radius:8px;padding:10px 12px;font-size:13.5px;margin-bottom:12px;"></div>
+    <div id="issueFormOk" style="display:none;background:#1d2f1a;border:1px solid #3d5a38;color:#9fd49a;border-radius:8px;padding:10px 12px;font-size:13.5px;margin-bottom:12px;"></div>
+    <label style="display:block;color:#f3ead8;font-size:13.5px;font-weight:bold;margin-bottom:5px;">Title <span style="color:#e08a8a">*</span></label>
+    <input id="issueTitle" type="text" maxlength="200" placeholder="Short description of the issue" style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #33291a;background:#0d0b08;color:#f3ead8;font-size:15px;margin-bottom:12px;box-sizing:border-box;">
+    <label style="display:block;color:#f3ead8;font-size:13.5px;font-weight:bold;margin-bottom:5px;">What happened? <span style="color:#e08a8a">*</span></label>
+    <textarea id="issueDesc" placeholder="Describe what went wrong and what you expected to happen" style="width:100%;min-height:76px;padding:10px 12px;border-radius:8px;border:1px solid #33291a;background:#0d0b08;color:#f3ead8;font-size:15px;margin-bottom:12px;resize:vertical;box-sizing:border-box;font-family:Arial,sans-serif;"></textarea>
+    <label style="display:block;color:#f3ead8;font-size:13.5px;font-weight:bold;margin-bottom:5px;">Steps to reproduce</label>
+    <textarea id="issueSteps" placeholder="1. Go to…&#10;2. Click on…&#10;3. See error…" style="width:100%;min-height:56px;padding:10px 12px;border-radius:8px;border:1px solid #33291a;background:#0d0b08;color:#f3ead8;font-size:15px;margin-bottom:12px;resize:vertical;box-sizing:border-box;font-family:Arial,sans-serif;"></textarea>
+    <label style="display:block;color:#f3ead8;font-size:13.5px;font-weight:bold;margin-bottom:5px;">Severity</label>
+    <select id="issueSeverity" style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #33291a;background:#0d0b08;color:#f3ead8;font-size:15px;margin-bottom:12px;box-sizing:border-box;">
+      <option value="low">Low — cosmetic / minor inconvenience</option>
+      <option value="medium" selected>Medium — affects workflow</option>
+      <option value="high">High — blocking a task</option>
+      <option value="critical">Critical — data loss or security</option>
+    </select>
+    <label style="display:block;color:#f3ead8;font-size:13.5px;font-weight:bold;margin-bottom:5px;">Page or area</label>
+    <input id="issueArea" type="text" maxlength="200" placeholder="e.g. Survey form, Staff page, Login page" style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #33291a;background:#0d0b08;color:#f3ead8;font-size:15px;margin-bottom:18px;box-sizing:border-box;">
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button id="issueCancelBtn" type="button" style="background:transparent;color:#e8c95a;border:1px solid #c9a227;padding:10px 18px;border-radius:8px;font-size:14px;font-weight:bold;cursor:pointer;">Cancel</button>
+      <button id="issueSubmitBtn" type="button" style="background:#c9a227;color:#171106;border:1px solid #c9a227;padding:10px 18px;border-radius:8px;font-size:14px;font-weight:bold;cursor:pointer;">Submit Report</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function openIssueModal() {
+  ['issueFormErr','issueFormOk'].forEach(id => { document.getElementById(id).style.display = 'none'; });
+  ['issueTitle','issueDesc','issueSteps','issueArea'].forEach(id => { document.getElementById(id).value = ''; });
+  document.getElementById('issueSeverity').value = 'medium';
+  document.getElementById('issueModal').style.display = 'block';
+  document.body.style.overflow = 'hidden';
+  document.getElementById('issueTitle').focus();
+}
+function closeIssueModal() {
+  document.getElementById('issueModal').style.display = 'none';
+  document.body.style.overflow = '';
+}
+document.getElementById('issueCancelBtn').addEventListener('click', closeIssueModal);
+document.getElementById('issueModal').addEventListener('click', e => { if (e.target === document.getElementById('issueModal')) closeIssueModal(); });
+document.getElementById('issueSubmitBtn').addEventListener('click', async () => {
+  const title = document.getElementById('issueTitle').value.trim();
+  const description = document.getElementById('issueDesc').value.trim();
+  const errEl = document.getElementById('issueFormErr');
+  const okEl = document.getElementById('issueFormOk');
+  errEl.style.display = 'none';
+  if (!title || !description) {
+    errEl.textContent = 'Title and description are required.';
+    errEl.style.display = 'block'; return;
+  }
+  const btn = document.getElementById('issueSubmitBtn');
+  btn.disabled = true; btn.textContent = 'Submitting…';
+  try {
+    const r = await fetch('/api/issues', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title, description,
+        steps: document.getElementById('issueSteps').value.trim(),
+        severity: document.getElementById('issueSeverity').value,
+        area: document.getElementById('issueArea').value.trim(),
+        user_agent: navigator.userAgent,
+      }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.error || 'submission failed');
+    okEl.textContent = 'Issue reported — thank you! We will investigate.';
+    okEl.style.display = 'block';
+    setTimeout(closeIssueModal, 2200);
+  } catch (e) {
+    errEl.textContent = e.message; errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Submit Report';
+  }
+});
+</script>
+
 <script>
 (async () => {
   try {
     const s = await fetch('/api/session').then(r => r.json());
     if (!s.loggedIn) return;
-    const loggedInHtml = (s.canSurvey ? '<a class="btn ghost" href="/feedback">Survey</a> ' : '') +
+    const loggedInHtml = (s.canSurvey ? '<a class="btn ghost" href="/survey">Survey</a> ' : '') +
                          (s.canStaff  ? '<a class="btn ghost" href="/staff">Staff</a> ' : '') +
+                         '<button class="btn ghost" onclick="openIssueModal()" type="button" style="cursor:pointer;">Report Issue</button> ' +
                          '<a class="btn ghost" href="#" onclick="fetch(\'/api/logout\',{method:\'POST\'}).then(()=>location.reload());return false">Sign Out</a>';
-    const footerHtml = (s.canSurvey ? '<a href="/feedback">Survey</a> ' : '') +
+    const footerHtml = (s.canSurvey ? '<a href="/survey">Survey</a> ' : '') +
                        (s.canStaff  ? '<a href="/staff">Staff</a> ' : '') +
+                       '<a href="#" onclick="openIssueModal()">Report Issue</a> ' +
                        '<a href="#" onclick="fetch(\'/api/logout\',{method:\'POST\'}).then(()=>location.reload());return false">Sign Out</a>';
     document.getElementById('emp-nav').innerHTML   = loggedInHtml;
     document.getElementById('emp-cta').innerHTML   = loggedInHtml;
