@@ -875,13 +875,13 @@ async function loadVisits() {
     $('visitsBody').innerHTML = rows.length ? rows.map(v =>
       `<tr><td>${esc(String(v.visit_date || '').slice(0, 10))}</td><td>${esc(v.business_name || '(no name yet)')}</td>` +
       `<td>${esc(TYPE_LABEL[v.business_type] || '')}</td><td>${esc(v.town || '')}</td>` +
-      `<td><span class=”pill ${esc(v.status)}”>${esc(v.status)}</span></td>` +
+      `<td><span class="pill ${esc(v.status)}">${esc(v.status)}</span></td>` +
       `<td>${esc(v.submitted_by || '')}</td>` +
       (v.status === 'completed'
-        ? `<td><a class=”btn ghost” href=”/api/visits/${v.id}/pdf” target=”_blank” rel=”noopener” style=”font-size:13px;padding:6px 11px;”>PDF</a> <button type=”button” class=”ghost” data-open=”${v.id}” style=”margin-left:4px;”>Edit</button></td>`
-        : `<td><button type=”button” class=”ghost” data-open=”${v.id}”>${v.status === 'draft' ? 'Continue' : 'Open'}</button></td>`)
+        ? `<td><a class="btn ghost" href="/api/visits/${v.id}/pdf" target="_blank" rel="noopener" style="font-size:13px;padding:6px 11px;">PDF</a> <button type="button" class="ghost" data-open="${v.id}" style="margin-left:4px;">Edit</button></td>`
+        : `<td><button type="button" class="ghost" data-open="${v.id}">${v.status === 'draft' ? 'Continue' : 'Open'}</button></td>`)
     ).join('')
-      : '<tr><td colspan=”7” style=”color:var(--muted);”>No visits yet. Start with “+ New visit”.</td></tr>';
+      : '<tr><td colspan="7" style="color:var(--muted);">No visits yet. Start with "+ New visit".</td></tr>';
     document.querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', async () => {
       try { openWizard(await api('/api/visits/' + b.dataset.open)); }
       catch (e) { showError('listError', e.message); }
