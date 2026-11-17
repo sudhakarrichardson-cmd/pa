@@ -61,17 +61,21 @@
   input[type=file] { font-size:13.5px; color:var(--muted); max-width:230px; }
   .hidden { display:none !important; }
   .other-specify { margin-top:8px; }
+  .langtog { display:inline-flex; border:1px solid var(--line); border-radius:14px; overflow:hidden; }
+  .langbtn { background:transparent; color:var(--muted); border:0; padding:4px 11px; font-size:12.5px; font-weight:bold; cursor:pointer; }
+  .langbtn.on { background:var(--gold); color:#171106; }
   a { color:var(--gold2); }
 </style>
 </head>
 <body>
 <header>
   <div class="nav">
-    <a class="brandrow" href="/" aria-label="PlotFarms home"><img class="mark" src="/assets/logo-mark.webp" alt="" width="53" height="26"><div class="brand">PlotFarms<small>SURVEY</small></div></a>
+    <a class="brandrow" href="/" aria-label="PlotFarms home"><img class="mark" src="/assets/logo-mark.webp" alt="" width="53" height="26"><div class="brand">PlotFarms<small data-i18n="SURVEY">SURVEY</small></div></a>
     <div class="sp">
-      <a href="/staff" id="staffLink" class="hidden">Staff &amp; HR</a>
+      <span class="langtog"><button type="button" id="langEnBtn" class="langbtn">English</button><button type="button" id="langTeBtn" class="langbtn">తెలుగు</button></span>
+      <a href="/staff" id="staffLink" class="hidden" data-i18n="Staff &amp; HR">Staff &amp; HR</a>
       <span id="whoami"></span>
-      <button class="ghost" id="logoutBtn" type="button">Sign out</button>
+      <button class="ghost" id="logoutBtn" type="button" data-i18n="Sign out">Sign out</button>
     </div>
   </div>
 </header>
@@ -79,40 +83,40 @@
 <div class="wrap">
   <!-- ================= LIST VIEW ================= -->
   <div id="listView">
-    <h1>Survey</h1>
-    <p class="sub">Field survey visits. Drafts save automatically — a visit is only final after Submit, and Part C is filled after leaving the shop.</p>
+    <h1 data-i18n="Survey">Survey</h1>
+    <p class="sub" data-i18n="Field survey visits. Drafts save automatically — a visit is only final after Submit, and Part C is filled after leaving the shop.">Field survey visits. Drafts save automatically — a visit is only final after Submit, and Part C is filled after leaving the shop.</p>
     <div class="error" id="listError"></div>
     <div class="okmsg" id="listNotice"></div>
-    <p style="margin-bottom:16px;"><button id="newVisitBtn" type="button">+ New visit</button></p>
+    <p style="margin-bottom:16px;"><button id="newVisitBtn" type="button" data-i18n="+ New visit">+ New visit</button></p>
 
     <div class="card">
-      <h2 style="margin-top:0;">Visits</h2>
+      <h2 style="margin-top:0;" data-i18n="Visits">Visits</h2>
       <div style="overflow-x:auto;">
       <table>
-        <thead><tr><th>Date</th><th>Business</th><th>Type</th><th>Town</th><th>Status</th><th>Submitted by</th><th></th></tr></thead>
-        <tbody id="visitsBody"><tr><td colspan="7" style="color:var(--muted);">Loading…</td></tr></tbody>
+        <thead><tr><th data-i18n="Date">Date</th><th data-i18n="Business">Business</th><th data-i18n="Type">Type</th><th data-i18n="Town">Town</th><th data-i18n="Status">Status</th><th data-i18n="Submitted by">Submitted by</th><th></th></tr></thead>
+        <tbody id="visitsBody"><tr><td colspan="7" style="color:var(--muted);" data-i18n="Loading…">Loading…</td></tr></tbody>
       </table>
       </div>
     </div>
 
     <!-- Manager dashboard (shown only for manager/owner) -->
     <div id="dashCard" class="card hidden">
-      <h2 style="margin-top:0;">Office dashboard</h2>
+      <h2 style="margin-top:0;" data-i18n="Office dashboard">Office dashboard</h2>
       <div class="counts" id="dashCounts"></div>
-      <h2>Visits by type</h2>
+      <h2 data-i18n="Visits by type">Visits by type</h2>
       <div class="counts" id="dashTypes"></div>
-      <p style="margin-top:18px;"><a class="btn ghost" href="/api/export.csv">⬇ Export CSV (Results Tracker columns)</a></p>
+      <p style="margin-top:18px;"><a class="btn ghost" href="/api/export.csv" data-i18n="⬇ Export CSV (Results Tracker columns)">⬇ Export CSV (Results Tracker columns)</a></p>
     </div>
 
     <!-- Issue reports (admin only) -->
     <div id="issuesCard" class="card hidden">
-      <h2 style="margin-top:0;">Issue Reports</h2>
+      <h2 style="margin-top:0;" data-i18n="Issue Reports">Issue Reports</h2>
       <div class="error" id="issuesError"></div>
       <div id="issuesList">
         <div style="overflow-x:auto;">
         <table>
-          <thead><tr><th>Title</th><th>Severity</th><th>Submitted by</th><th>Status</th><th>Date</th><th></th></tr></thead>
-          <tbody id="issuesBody"><tr><td colspan="6" style="color:var(--muted);">Loading…</td></tr></tbody>
+          <thead><tr><th data-i18n="Title">Title</th><th data-i18n="Severity">Severity</th><th data-i18n="Submitted by">Submitted by</th><th data-i18n="Status">Status</th><th data-i18n="Date">Date</th><th></th></tr></thead>
+          <tbody id="issuesBody"><tr><td colspan="6" style="color:var(--muted);" data-i18n="Loading…">Loading…</td></tr></tbody>
         </table>
         </div>
       </div>
@@ -122,9 +126,9 @@
         <div class="okmsg" id="issueDetailOk"></div>
         <div class="error" id="issueDetailError"></div>
         <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;">
-          <button id="analyzeBtn" type="button">Analyze with AI</button>
-          <button id="resolveBtn" type="button" class="ghost">Mark Resolved</button>
-          <button id="closeIssueBtn" type="button" class="ghost">← Back to list</button>
+          <button id="analyzeBtn" type="button" data-i18n="Analyze with AI">Analyze with AI</button>
+          <button id="resolveBtn" type="button" class="ghost" data-i18n="Mark Resolved">Mark Resolved</button>
+          <button id="closeIssueBtn" type="button" class="ghost" data-i18n="← Back to list">← Back to list</button>
         </div>
         <div id="analysisResult" class="hidden" style="margin-top:14px;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:14px;white-space:pre-wrap;font-size:13.5px;color:var(--text);line-height:1.55;"></div>
       </div>
@@ -134,28 +138,28 @@
   <!-- ================= WIZARD VIEW ================= -->
   <div id="wizardView" class="hidden">
     <h1 id="wizTitle">New visit</h1>
-    <p class="sub" id="wizSub">Answers save as a draft automatically. Never quote a fee or promise a date — wishes are requirements.</p>
+    <p class="sub" id="wizSub" data-i18n="Answers save as a draft automatically. Never quote a fee or promise a date — wishes are requirements.">Answers save as a draft automatically. Never quote a fee or promise a date — wishes are requirements.</p>
     <div class="stepper" id="stepper"></div>
     <div class="error" id="wizError"></div>
     <div class="okmsg" id="wizOk"></div>
     <div class="card" id="stepBody"></div>
     <div class="wizard-nav">
-      <button class="ghost" id="backBtn" type="button">← Back</button>
+      <button class="ghost" id="backBtn" type="button" data-i18n="← Back">← Back</button>
       <span class="savestate" id="saveState"></span>
       <span class="sp"></span>
-      <button class="ghost" id="listBtn" type="button">Save &amp; exit</button>
-      <button id="nextBtn" type="button">Next →</button>
-      <button id="submitBtn" type="button" class="hidden">Submit visit</button>
-      <button id="saveChangesBtn" type="button" class="hidden">Save changes</button>
+      <button class="ghost" id="listBtn" type="button" data-i18n="Save &amp; exit">Save &amp; exit</button>
+      <button id="nextBtn" type="button" data-i18n="Next →">Next →</button>
+      <button id="submitBtn" type="button" class="hidden" data-i18n="Submit visit">Submit visit</button>
+      <button id="saveChangesBtn" type="button" class="hidden" data-i18n="Save changes">Save changes</button>
     </div>
 
     <!-- Part C panel (shown for submitted + completed visits) -->
     <div id="partCPanel" class="hidden">
-      <h2 id="partCTitle">Part C — Engineer wrap-up (internal, after the visit)</h2>
+      <h2 id="partCTitle" data-i18n="Part C — Engineer wrap-up (internal, after the visit)">Part C — Engineer wrap-up (internal, after the visit)</h2>
       <div class="card" id="partCBody"></div>
       <div class="okmsg" id="partCOk"></div>
       <div class="error" id="partCError"></div>
-      <p><button id="wrapupBtn" type="button">Save wrap-up</button></p>
+      <p><button id="wrapupBtn" type="button" data-i18n="Save wrap-up">Save wrap-up</button></p>
     </div>
   </div>
 </div>
@@ -431,6 +435,543 @@ const PART_C = [
 /* ============================ app logic ============================ */
 const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+/* ================= i18n — English / తెలుగు =================
+ * Same pattern as the textiles app: full EN/TE dictionary, header
+ * toggle, DEFAULT Telugu, preference in localStorage key 'lang'.
+ * tr() is applied ONLY to displayed text — field keys and the option
+ * VALUES submitted to the API are never translated, so the payload
+ * for the same answers is identical in both languages. */
+let LANG = 'te';
+try { LANG = localStorage.getItem('lang') || 'te'; } catch { /* storage unavailable */ }
+if (LANG !== 'en' && LANG !== 'te') LANG = 'te';
+const TE = {
+ "A1. Business profile": "A1. వ్యాపారం వివరాలు",
+ "A2. People & daily operations": "A2. సిబ్బంది & రోజువారీ పనులు",
+ "A3. Customers — how orders / clients / patients come today": "A3. కస్టమర్లు — ఈ రోజు ఆర్డర్లు / క్లయింట్లు / పేషెంట్లు ఎలా వస్తున్నారు",
+ "A4. Today's flow, step by step": "A4. ఈ రోజు పని జరిగే విధానం, అడుగు అడుగుగా",
+ "A5. What you sell / offer — catalogue & prices": "A5. మీరు అమ్మేవి / ఇచ్చే సేవలు — లిస్టు & ధరలు",
+ "A6. Billing, payments & credit": "A6. బిల్లింగ్, పేమెంట్లు & అరువు",
+ "A7. Pain points — ask the owner to rank": "A7. ఇబ్బందులు — ఓనర్‌ను వరుస పెట్టమనండి",
+ "A8. Tech readiness": "A8. టెక్ వాడకానికి సిద్ధత",
+ "A9. Goal, decision & pilot": "A9. లక్ష్యం, నిర్ణయం & పైలట్",
+ "B1. Cloth / Textile store": "B1. బట్టల / టెక్స్‌టైల్ దుకాణం",
+ "B2. Vegetable store": "B2. కూరగాయల దుకాణం",
+ "B3. Restaurant / Hotel / Eatery": "B3. రెస్టారెంట్ / హోటల్ / భోజనశాల",
+ "B4. Grocery / Kirana store": "B4. కిరాణా దుకాణం",
+ "B5. Lawyer / Advocate": "B5. లాయర్ / అడ్వకేట్",
+ "B6. Doctor office / Clinic": "B6. డాక్టర్ ఆఫీసు / క్లినిక్",
+ "Start": "మొదలు",
+ "Profile & people": "వివరాలు & సిబ్బంది",
+ "Customers": "కస్టమర్లు",
+ "Flow & catalogue": "పని విధానం & లిస్టు",
+ "Billing, pains, tech": "బిల్లింగ్, ఇబ్బందులు, టెక్",
+ "Goal & pilot": "లక్ష్యం & పైలట్",
+ "Samples": "నమూనాలు",
+ "Type module": "రకం ప్రశ్నలు",
+ "Review": "చివరి చెక్",
+ "Cloth / Textile": "బట్టలు / టెక్స్‌టైల్",
+ "Vegetable": "కూరగాయలు",
+ "Restaurant": "రెస్టారెంట్",
+ "Grocery / Kirana": "కిరాణా",
+ "Lawyer": "లాయర్",
+ "Doctor office": "డాక్టర్ ఆఫీసు",
+ "Need to see it working first": "ముందు అది పని చేయడం చూడాలి",
+ "Orders / calls missed when busy": "బిజీగా ఉన్నప్పుడు ఆర్డర్లు / కాల్స్ మిస్ అవుతున్నాయి",
+ "Customers cannot reach us / no response after shop hours": "కస్టమర్లు మమ్మల్ని చేరుకోలేరు / షాపు మూసిన తర్వాత రెస్పాన్స్ లేదు",
+ "Billing takes too long / billing mistakes": "బిల్లింగ్‌కు ఎక్కువ సమయం పడుతుంది / బిల్లింగ్‌లో తప్పులు",
+ "Stock confusion — what is available, what finished": "స్టాక్ గందరగోళం — ఏది ఉంది, ఏది అయిపోయింది తెలియదు",
+ "Credit (khata) tracking and recovery": "అరువు (ఖాతా) లెక్కలు, వసూలు చేయడం",
+ "Delivery confusion — who went, what is pending": "డెలివరీ గందరగోళం — ఎవరు వెళ్ళారు, ఏది పెండింగ్‌లో ఉంది",
+ "Prices / rates confusion among staff": "సిబ్బందిలో ధరలు / రేట్ల గందరగోళం",
+ "Follow-ups forgotten (reminders, repeat orders, pending work)": "ఫాలో-అప్‌లు మర్చిపోతున్నారు (రిమైండర్లు, మళ్ళీ ఆర్డర్లు, పెండింగ్ పనులు)",
+ "Too much work depends on the owner personally": "చాలా పని ఓనర్ మీదే ఆధారపడి ఉంది",
+ "Getting NEW customers is hard": "కొత్త కస్టమర్లను తెచ్చుకోవడం కష్టం",
+ "Platform commissions eating margin (Swiggy / Zomato / others)": "ప్లాట్‌ఫాం కమిషన్లు లాభాన్ని తినేస్తున్నాయి (Swiggy / Zomato / ఇతరవి)",
+ "Paper records hard to search (old bills, old cases, old patients)": "పేపర్ రికార్డులు వెతకడం కష్టం (పాత బిల్లులు, పాత కేసులు, పాత పేషెంట్లు)",
+ "1. Business name (as on the board)": "1. వ్యాపారం పేరు (బోర్డు మీద ఉన్నట్టు)",
+ "2. Owner name": "2. ఓనర్ పేరు",
+ "2b. Who takes decisions about spending": "2b. ఖర్చు గురించి నిర్ణయం ఎవరు తీసుకుంటారు",
+ "3. Owner mobile / WhatsApp number (the number customers should reach)": "3. ఓనర్ మొబైల్ / WhatsApp నంబర్ (కస్టమర్లు చేరుకోవాల్సిన నంబర్)",
+ "4. Full address + landmark": "4. పూర్తి అడ్రస్ + దగ్గరి గుర్తు (ల్యాండ్‌మార్క్)",
+ "4b. Town / area": "4b. ఊరు / ఏరియా",
+ "5. Years in business": "5. వ్యాపారం ఎన్ని ఏళ్ళుగా చేస్తున్నారు",
+ "5b. Business type": "5b. వ్యాపారం రకం",
+ "6. Registration": "6. రిజిస్ట్రేషన్",
+ "6b. GSTIN (if any)": "6b. GSTIN (ఉంటే)",
+ "7. Languages your customers speak": "7. మీ కస్టమర్లు మాట్లాడే భాషలు",
+ "8. Shop timings (open–close, weekly holiday)": "8. షాపు టైమింగ్స్ (తెరిచే–మూసే వేళ, వారం సెలవు)",
+ "Retail": "రిటైల్ (చిల్లర)",
+ "Wholesale": "హోల్‌సేల్ (టోకు)",
+ "Both": "రెండూ",
+ "Trade licence": "ట్రేడ్ లైసెన్స్",
+ "Udyam": "ఉద్యమ్",
+ "None": "ఏదీ లేదు",
+ "Telugu": "తెలుగు",
+ "English": "ఇంగ్లీషు",
+ "Hindi": "హిందీ",
+ "Other": "ఇతర",
+ "9. How many people work here (including owner)? Who does what — selling, billing, delivery, phone?": "9. ఇక్కడ మొత్తం ఎంతమంది పని చేస్తారు (ఓనర్‌తో కలిపి)? ఎవరు ఏ పని చేస్తారు — అమ్మకం, బిల్లింగ్, డెలివరీ, ఫోన్?",
+ "10. Who attends customer calls / WhatsApp today? What happens to those calls when that person is busy or absent?": "10. ఈ రోజు కస్టమర్ కాల్స్ / WhatsApp ఎవరు చూస్తున్నారు? ఆ మనిషి బిజీగా ఉన్నప్పుడు లేదా లేనప్పుడు ఆ కాల్స్ ఏమవుతాయి?",
+ "11. Which work depends on ONE person only (billing, rates, supplier contacts)?": "11. ఏ పని ఒక్క మనిషి మీదే ఆధారపడి ఉంది (బిల్లింగ్, రేట్లు, సప్లయర్ నంబర్లు)?",
+ "12. Busiest hours of the day": "12. రోజులో అత్యంత బిజీ వేళలు",
+ "12b. Slowest hours": "12b. తక్కువ బిజీ వేళలు",
+ "13. Who will operate a new system daily — owner / staff? Their age": "13. కొత్త సిస్టమ్‌ను రోజూ ఎవరు నడుపుతారు — ఓనరా / సిబ్బందా? వారి వయసు",
+ "13b. Their comfort with smartphone apps": "13b. స్మార్ట్‌ఫోన్ యాప్‌లు వాడటంలో వారి సౌకర్యం",
+ "low": "తక్కువ",
+ "medium": "మధ్యస్థం",
+ "good": "బాగుంది",
+ "14. Who are your customers? (households / other shops / offices / walk-ins)": "14. మీ కస్టమర్లు ఎవరు? (ఇళ్ళు / ఇతర షాపులు / ఆఫీసులు / నేరుగా వచ్చేవారు)",
+ "14b. Approx. radius customers come from (km)": "14b. కస్టమర్లు సుమారు ఎంత దూరం నుండి వస్తారు (కి.మీ)",
+ "15. Approx. customers / orders per day — weekday": "15. రోజుకు సుమారు కస్టమర్లు / ఆర్డర్లు — వారపు రోజు",
+ "15b. Approx. customers / orders per day — weekend": "15b. రోజుకు సుమారు కస్టమర్లు / ఆర్డర్లు — వారాంతం",
+ "16. Orders per day — Walk-in": "16. రోజుకు ఆర్డర్లు — నేరుగా వచ్చేవి",
+ "16b. Orders per day — Phone call": "16b. రోజుకు ఆర్డర్లు — ఫోన్ కాల్",
+ "16c. Orders per day — WhatsApp (personal number)": "16c. రోజుకు ఆర్డర్లు — WhatsApp (పర్సనల్ నంబర్)",
+ "16d. Orders per day — WhatsApp Business app": "16d. రోజుకు ఆర్డర్లు — WhatsApp Business యాప్",
+ "16e. Any app / platform used (name)": "16e. వాడుతున్న యాప్ / ప్లాట్‌ఫాం ఏదైనా (పేరు)",
+ "16f. Orders per day — through that app / platform": "16f. రోజుకు ఆర్డర్లు — ఆ యాప్ / ప్లాట్‌ఫాం ద్వారా",
+ "16g. Orders per day — Through staff / agents": "16g. రోజుకు ఆర్డర్లు — సిబ్బంది / ఏజెంట్ల ద్వారా",
+ "17. How do NEW customers find you today?": "17. కొత్త కస్టమర్లు ఈ రోజు మిమ్మల్ని ఎలా కనుక్కుంటున్నారు?",
+ "18. When the shop is busy, what happens to calls and messages?": "18. షాపు బిజీగా ఉన్నప్పుడు కాల్స్, మెసేజ్‌లు ఏమవుతాయి?",
+ "18b. Estimated orders / enquiries missed in a week": "18b. వారంలో మిస్ అయ్యే ఆర్డర్లు / ఎంక్వైరీలు సుమారు",
+ "19. Regular / repeat customers: approx. how many? How do they re-order or come back today?": "19. రెగ్యులర్ / మళ్ళీ వచ్చే కస్టమర్లు: సుమారు ఎంతమంది? వారు మళ్ళీ ఎలా ఆర్డర్ చేస్తారు లేదా వస్తారు?",
+ "Shop board": "షాపు బోర్డు",
+ "Word of mouth": "నోటి మాట (తెలిసినవారు చెప్పడం)",
+ "Google search / maps": "Google సెర్చ్ / మ్యాప్స్",
+ "WhatsApp status / forwards": "WhatsApp స్టేటస్ / ఫార్వర్డ్‌లు",
+ "Ads / pamphlets": "ప్రకటనలు / పాంప్లెట్లు",
+ "20. Step by step (enquiry → price / confirmation → billing → payment → delivery / service → if something goes wrong) — walk through one typical order from yesterday": "20. అడుగు అడుగుగా (ఎంక్వైరీ → ధర / కన్ఫర్మ్ → బిల్లింగ్ → పేమెంట్ → డెలివరీ / సేవ → ఏదైనా తప్పు జరిగితే) — నిన్నటి ఒక సాధారణ ఆర్డర్‌ను మొదటి నుండి చెప్పండి",
+ "21. In this flow, where do delays happen most? Where do mistakes happen most (wrong item, wrong price, missed delivery, forgotten follow-up)?": "21. ఈ పనిలో ఆలస్యం ఎక్కువగా ఎక్కడ అవుతుంది? తప్పులు ఎక్కువగా ఎక్కడ జరుగుతాయి (తప్పు ఐటమ్, తప్పు ధర, మిస్ అయిన డెలివరీ, మర్చిపోయిన ఫాలో-అప్)?",
+ "22. What is done on paper today (notebooks, bill books, registers)? Which of those papers is hardest to search later?": "22. ఈ రోజు ఏ పనులు పేపర్ మీద చేస్తున్నారు (నోట్‌బుక్‌లు, బిల్ బుక్‌లు, రిజిస్టర్లు)? వాటిలో తర్వాత వెతకడం అత్యంత కష్టమైనది ఏది?",
+ "23. Approx. how many items / services in total?": "23. మొత్తం సుమారు ఎన్ని ఐటమ్‌లు / సేవలు ఉన్నాయి?",
+ "23b. Main categories (top 5)": "23b. ముఖ్యమైన రకాలు (మొదటి 5)",
+ "24. Is there a written price list / menu / fee chart?": "24. రాసిన ధరల లిస్టు / మెనూ / ఫీజు చార్టు ఉందా?",
+ "25. How often do prices change?": "25. ధరలు ఎంత తరచుగా మారుతాయి?",
+ "25b. Who changes prices, and how do staff learn the new price?": "25b. ధరలు ఎవరు మారుస్తారు, కొత్త ధర సిబ్బందికి ఎలా తెలుస్తుంది?",
+ "26. Are rates different for different customers (retail vs wholesale, regulars)? How is that decided today?": "26. వేర్వేరు కస్టమర్లకు రేట్లు వేరుగా ఉంటాయా (రిటైల్ vs హోల్‌సేల్, రెగ్యులర్లు)? అది ఈ రోజు ఎలా నిర్ణయిస్తారు?",
+ "27. Any items / services customers ask for that you cannot supply today?": "27. కస్టమర్లు అడిగే, కానీ మీరు ఈ రోజు ఇవ్వలేని ఐటమ్‌లు / సేవలు ఏవైనా ఉన్నాయా?",
+ "Yes (collect photo/copy)": "ఉంది (ఫోటో/కాపీ తీసుకోండి)",
+ "No — prices are in owner's head": "లేదు — ధరలు ఓనర్ మనసులోనే ఉన్నాయి",
+ "Daily": "రోజూ",
+ "Weekly": "వారానికి",
+ "Monthly": "నెలకు",
+ "Rarely": "అరుదుగా",
+ "28. Billing today": "28. ఈ రోజు బిల్లింగ్ విధానం",
+ "28b. Billing software name (if any)": "28b. బిల్లింగ్ సాఫ్ట్‌వేర్ పేరు (ఉంటే)",
+ "29. GST billing": "29. GST బిల్లింగ్",
+ "30. Payment split — cash %": "30. పేమెంట్ వాటా — నగదు %",
+ "30b. Payment split — UPI %": "30b. పేమెంట్ వాటా — UPI %",
+ "30c. Payment split — card %": "30c. పేమెంట్ వాటా — కార్డు %",
+ "30d. Payment split — credit (khata / udhaar) %": "30d. పేమెంట్ వాటా — అరువు (ఖాతా) %",
+ "31. Credit given to customers? To whom, approx. how many accounts, how is it written and recovered? Amount usually outstanding (range)?": "31. కస్టమర్లకు అరువు ఇస్తారా? ఎవరికి, సుమారు ఎన్ని ఖాతాలు, ఎలా రాస్తారు, ఎలా వసూలు చేస్తారు? సాధారణంగా ఎంత బాకీ ఉంటుంది (రేంజ్)?",
+ "32. Daily sales / collection range (optional)": "32. రోజు అమ్మకాలు / వసూలు రేంజ్ (ఐచ్ఛికం)",
+ "33. End of day: how do you know today's total sale and cash? How long does that take?": "33. రోజు చివర: ఈ రోజు మొత్తం అమ్మకం, నగదు ఎలా తెలుస్తుంది? దానికి ఎంత సమయం పడుతుంది?",
+ "Bill book (handwritten)": "బిల్ బుక్ (చేత్తో రాసేది)",
+ "Billing software": "బిల్లింగ్ సాఫ్ట్‌వేర్",
+ "Computer + printer": "కంప్యూటర్ + ప్రింటర్",
+ "No bill given": "బిల్లు ఇవ్వరు",
+ "GST bills for all sales": "అన్ని అమ్మకాలకు GST బిల్లులు",
+ "GST bills only when asked": "అడిగినప్పుడు మాత్రమే GST బిల్లు",
+ "No GST billing": "GST బిల్లింగ్ లేదు",
+ "Pain points that apply (tick all)": "వర్తించే ఇబ్బందులు (అన్నీ టిక్ చేయండి)",
+ "TOP 1 pain": "మొదటి పెద్ద ఇబ్బంది (TOP 1)",
+ "TOP 2 pain": "రెండవ ఇబ్బంది (TOP 2)",
+ "TOP 3 pain": "మూడవ ఇబ్బంది (TOP 3)",
+ "34. In the owner’s own words — \"If one thing could be fixed tomorrow, what should it be?\"": "34. ఓనర్ మాటల్లోనే — \"రేపటికల్లా ఒక్కటి సరిచేయగలిగితే, అది ఏది కావాలి?\"",
+ "35. Smartphones in the shop: how many, whose, Android / iPhone? Is the shop number on WhatsApp?": "35. షాపులో స్మార్ట్‌ఫోన్లు: ఎన్ని, ఎవరివి, Android / iPhone? షాపు నంబర్ WhatsApp లో ఉందా?",
+ "36. Internet at the shop": "36. షాపులో ఇంటర్నెట్",
+ "36b. Internet details (if weak signal)": "36b. ఇంటర్నెట్ వివరాలు (సిగ్నల్ తక్కువైతే)",
+ "37. Computer / laptop / printer available?": "37. కంప్యూటర్ / ల్యాప్‌టాప్ / ప్రింటర్ ఉన్నాయా?",
+ "37b. Printer type (if any)": "37b. ప్రింటర్ రకం (ఉంటే)",
+ "38. Software used today (Tally, Vyapar, billing app, Excel, any clinic / case software)": "38. ఈ రోజు వాడుతున్న సాఫ్ట్‌వేర్ (Tally, Vyapar, బిల్లింగ్ యాప్, Excel, క్లినిక్ / కేసు సాఫ్ట్‌వేర్ ఏదైనా)",
+ "39. Have you tried any app or system before? What happened — why did it stop?": "39. ఇంతకు ముందు ఏదైనా యాప్ లేదా సిస్టమ్ వాడారా? ఏమైంది — ఎందుకు ఆగిపోయింది?",
+ "40. If the system speaks to customers on WhatsApp in Telugu + English, is that enough, or is another language needed?": "40. సిస్టమ్ కస్టమర్లతో WhatsApp లో తెలుగు + ఇంగ్లీషులో మాట్లాడితే సరిపోతుందా, లేక ఇంకో భాష కావాలా?",
+ "Mobile data": "మొబైల్ డేటా",
+ "WiFi / broadband": "WiFi / బ్రాడ్‌బ్యాండ్",
+ "Weak signal": "సిగ్నల్ తక్కువ",
+ "Computer": "కంప్యూటర్",
+ "Printer": "ప్రింటర్",
+ "41. \"If this system works well, what should improve first?\"": "41. \"ఈ సిస్టమ్ బాగా పని చేస్తే, ముందు ఏది మెరుగుపడాలి?\"",
+ "42. How many EXTRA orders / clients per month would make it clearly worth it?": "42. నెలకు ఎన్ని అదనపు ఆర్డర్లు / క్లయింట్లు వస్తే ఇది ఖచ్చితంగా విలువైనది అనిపిస్తుంది?",
+ "43. Current monthly spend — ads / pamphlets ₹": "43. ప్రస్తుత నెల ఖర్చు — ప్రకటనలు / పాంప్లెట్లు ₹",
+ "43b. Current monthly spend — software ₹": "43b. ప్రస్తుత నెల ఖర్చు — సాఫ్ట్‌వేర్ ₹",
+ "43c. Current monthly spend — platform commissions ₹": "43c. ప్రస్తుత నెల ఖర్చు — ప్లాట్‌ఫాం కమిషన్లు ₹",
+ "44. Monthly-fee range that feels reasonable (like a phone recharge — no big upfront cost)": "44. సరైనదిగా అనిపించే నెల ఫీజు రేంజ్ (ఫోన్ రీఛార్జ్ లాగా — ముందు పెద్ద ఖర్చు లేదు)",
+ "45. Can we run a free pilot with your REAL orders for 2 weeks?": "45. మీ నిజమైన ఆర్డర్లతో 2 వారాలు ఉచిత పైలట్ చేయవచ్చా?",
+ "46. Who finally decides — you alone, partner, family? Name + relation": "46. చివరి నిర్ణయం ఎవరిది — మీరేనా, పార్ట్‌నరా, కుటుంబమా? పేరు + సంబంధం",
+ "47. Best person for our office to call with the setup plan": "47. సెటప్ ప్లాన్ కోసం మా ఆఫీసు కాల్ చేయడానికి సరైన వ్యక్తి",
+ "47b. Best time to call": "47b. కాల్ చేయడానికి సరైన సమయం",
+ "More orders / clients": "ఎక్కువ ఆర్డర్లు / క్లయింట్లు",
+ "Fewer missed enquiries": "తక్కువ మిస్ అయ్యే ఎంక్వైరీలు",
+ "Less time in billing / records": "బిల్లింగ్ / రికార్డుల్లో తక్కువ సమయం",
+ "Better credit recovery": "మెరుగైన అరువు వసూలు",
+ "Less dependence on me": "నా మీద తక్కువ ఆధారం",
+ "Yes": "అవును",
+ "No": "కాదు",
+ "After seeing a demo": "డెమో చూసిన తర్వాత",
+ "Bill book / invoice sample (photo)": "బిల్ బుక్ / ఇన్‌వాయిస్ నమూనా (ఫోటో)",
+ "Price list / menu / fee chart (photo or copy)": "ధరల లిస్టు / మెనూ / ఫీజు చార్టు (ఫోటో లేదా కాపీ)",
+ "Shop front + board photo (with permission)": "షాపు ముందు భాగం + బోర్డు ఫోటో (అనుమతితో)",
+ "Visiting card / pamphlet": "విజిటింగ్ కార్డు / పాంప్లెట్",
+ "Catalogue / product photos, if any": "కేటలాగ్ / ప్రొడక్ట్ ఫోటోలు, ఉంటే",
+ "Existing app / software screen the staff use daily (photo)": "సిబ్బంది రోజూ వాడే యాప్ / సాఫ్ట్‌వేర్ స్క్రీన్ (ఫోటో)",
+ "1. Sales mix: retail % / wholesale %": "1. అమ్మకాల వాటా: రిటైల్ % / హోల్‌సేల్ %",
+ "2. Main categories sold": "2. అమ్మే ముఖ్య రకాలు",
+ "3. When outside customers order, what do they send?": "3. బయటి కస్టమర్లు ఆర్డర్ చేసినప్పుడు ఏమి పంపుతారు?",
+ "4. For one item (say a vest), how many variants — brands, sizes, colours? Approx total variants in the shop": "4. ఒక ఐటమ్‌కు (ఉదా. బనియన్) ఎన్ని రకాలు — బ్రాండ్లు, సైజులు, రంగులు? షాపులో మొత్తం సుమారు ఎన్ని రకాలు",
+ "5. Buying: which towns / suppliers (Tirupur, Surat, local)? How often do you buy, and how do goods come (parcel service name)?": "5. కొనుగోలు: ఏ ఊర్లు / సప్లయర్లు (తిరుప్పూర్, సూరత్, లోకల్)? ఎంత తరచుగా కొంటారు, సరుకు ఎలా వస్తుంది (పార్సెల్ సర్వీస్ పేరు)?",
+ "6. Do packs / boxes matter (pieces per box)? For selling, do you quote per piece or per box?": "6. ప్యాక్‌లు / బాక్స్‌లు ముఖ్యమా (బాక్సుకు ఎన్ని పీసులు)? అమ్మేటప్పుడు పీసు లెక్కనా, బాక్సు లెక్కనా చెప్తారు?",
+ "7. Discount practice": "7. డిస్కౌంట్ పద్ధతి",
+ "8. Returns / exchange: what does the board say, and what do you actually accept in practice?": "8. రిటర్న్ / ఎక్స్ఛేంజ్: బోర్డు మీద ఏముంది, నిజంగా మీరు ఏది ఒప్పుకుంటారు?",
+ "9. Peak seasons (festivals, school opening, marriage season) and what breaks first in peak time": "9. పీక్ సీజన్లు (పండుగలు, స్కూల్ తెరిచే సమయం, పెళ్ళిళ్ళ సీజన్) — పీక్‌లో ముందు ఏది ఇబ్బంది పడుతుంది",
+ "10. Stock: how do you know what is in stock and what is finishing?": "10. స్టాక్: ఏది స్టాక్‌లో ఉంది, ఏది అయిపోతోంది అని ఎలా తెలుస్తుంది?",
+ "11. Wholesale buyers: approx. how many regular shops buy from you? How do they re-order, and is credit given to them?": "11. హోల్‌సేల్ కొనేవారు: సుమారు ఎన్ని రెగ్యులర్ షాపులు మీ దగ్గర కొంటాయి? వారు మళ్ళీ ఎలా ఆర్డర్ చేస్తారు, వారికి అరువు ఇస్తారా?",
+ "12. If customers could send their list on WhatsApp, see rates, confirm, and get a proper bill + delivery status at home — what would that change for you?": "12. కస్టమర్లు తమ లిస్టు WhatsApp లో పంపి, రేట్లు చూసి, కన్ఫర్మ్ చేసి, సరైన బిల్లు + డెలివరీ స్టేటస్ ఇంట్లోనే పొందగలిగితే — మీకు ఏమి మారుతుంది?",
+ "Innerwear": "ఇన్నర్‌వేర్ (లోదుస్తులు)",
+ "Sarees": "చీరలు",
+ "Dress materials": "డ్రెస్ మెటీరియల్స్",
+ "Readymade garments": "రెడీమేడ్ దుస్తులు",
+ "School uniforms": "స్కూల్ యూనిఫారాలు",
+ "Hosiery": "హోజియరీ",
+ "Item name + size": "ఐటమ్ పేరు + సైజు",
+ "Photo of the item": "ఐటమ్ ఫోటో",
+ "Voice message": "వాయిస్ మెసేజ్",
+ "They call and describe": "కాల్ చేసి చెప్తారు",
+ "Fixed price": "ఫిక్స్‌డ్ ధర",
+ "Bargaining is normal": "బేరం సాధారణం",
+ "Fixed for regulars, bargaining for new": "రెగ్యులర్లకు ఫిక్స్‌డ్, కొత్తవారికి బేరం",
+ "Memory": "గుర్తు (జ్ఞాపకం)",
+ "Notebook": "నోట్‌బుక్",
+ "Software": "సాఫ్ట్‌వేర్",
+ "Physical check": "నేరుగా చూసి చెక్ చేయడం",
+ "1. Sourcing: which mandi / market, what time do you go daily, own vehicle or hired?": "1. సరుకు తెచ్చే చోటు: ఏ మండి / మార్కెట్, రోజూ ఏ సమయానికి వెళ్తారు, సొంత వాహనమా అద్దెదా?",
+ "2. How are today's selling prices fixed each morning? Do prices change again during the day?": "2. ఈ రోజు అమ్మకం ధరలు ప్రతి ఉదయం ఎలా నిర్ణయిస్తారు? రోజులో ధరలు మళ్ళీ మారుతాయా?",
+ "3. Approx. how many items on a normal day? Which items sell out first most days?": "3. సాధారణ రోజున సుమారు ఎన్ని ఐటమ్‌లు ఉంటాయి? చాలా రోజులు ముందు అయిపోయేవి ఏవి?",
+ "4. Wastage: approx. how much (kg or %) is unsold / spoiled per day? What happens to leftovers?": "4. వృథా: రోజుకు సుమారు ఎంత (కిలోలు లేదా %) అమ్ముడుపోకుండా / పాడైపోతుంది? మిగిలినవి ఏమి చేస్తారు?",
+ "5. Home delivery today": "5. ఈ రోజు హోమ్ డెలివరీ ఉందా",
+ "5b. Delivery: radius km, minimum order ₹, who delivers, any charge?": "5b. డెలివరీ: ఎంత దూరం (కి.మీ), కనీస ఆర్డర్ ₹, ఎవరు డెలివరీ చేస్తారు, ఛార్జ్ ఉందా?",
+ "6. Regular households: approx. how many order daily / weekly?": "6. రెగ్యులర్ ఇళ్ళు: సుమారు ఎన్ని రోజూ / వారానికి ఆర్డర్ చేస్తాయి?",
+ "6b. How do regular households order?": "6b. రెగ్యులర్ ఇళ్ళు ఎలా ఆర్డర్ చేస్తారు?",
+ "7. Credit (khata) to households: how many accounts, how written, when settled?": "7. ఇళ్ళకు అరువు (ఖాతా): ఎన్ని ఖాతాలు, ఎలా రాస్తారు, ఎప్పుడు సెటిల్ చేస్తారు?",
+ "8. Billing at the counter: weighing + total by": "8. కౌంటర్ వద్ద బిల్లింగ్: తూకం + మొత్తం దేనితో",
+ "8b. Is a bill given?": "8b. బిల్లు ఇస్తారా?",
+ "9. If households send their list on WhatsApp in the morning, by what time could you pack and deliver? What delivery slots suit you (morning / evening)?": "9. ఇళ్ళవారు ఉదయం తమ లిస్టు WhatsApp లో పంపితే, ఏ సమయానికి ప్యాక్ చేసి డెలివరీ చేయగలరు? మీకు ఏ డెలివరీ వేళలు సరిపోతాయి (ఉదయం / సాయంత్రం)?",
+ "10. What loses you the most money today": "10. ఈ రోజు మీకు అత్యంత నష్టం దేనివల్ల",
+ "Walk in": "నేరుగా వస్తారు",
+ "Phone": "ఫోన్",
+ "Written list given in advance": "ముందే రాసిన లిస్టు ఇస్తారు",
+ "Calculator": "క్యాలిక్యులేటర్",
+ "Paper": "పేపర్",
+ "App": "యాప్",
+ "Wastage": "వృథా",
+ "Missed orders": "మిస్ అయిన ఆర్డర్లు",
+ "Credit not returned": "తిరిగి రాని అరువు",
+ "Price mistakes": "ధరల తప్పులు",
+ "1. Type": "1. రకం",
+ "1b. Seats": "1b. సీట్లు",
+ "2. Mix: dine-in % / takeaway % / delivery %": "2. వాటా: ఇక్కడే తినేవారు % / పార్సెల్ % / డెలివరీ %",
+ "3. Menu: total items, daily specials?": "3. మెనూ: మొత్తం ఐటమ్‌లు, రోజువారీ స్పెషల్స్ ఉన్నాయా?",
+ "3b. Menu is": "3b. మెనూ రూపం",
+ "3c. Menu prices change how often?": "3c. మెనూ ధరలు ఎంత తరచుగా మారుతాయి?",
+ "4. Outside orders today": "4. ఈ రోజు బయటి ఆర్డర్లు",
+ "4b. Platform commission % (if Swiggy / Zomato)": "4b. ప్లాట్‌ఫాం కమిషన్ % (Swiggy / Zomato అయితే)",
+ "5. Kitchen order flow": "5. కిచెన్ ఆర్డర్ జరిగే విధానం",
+ "5b. Where do mistakes happen (wrong item, missed item, delay)?": "5b. తప్పులు ఎక్కడ జరుగుతాయి (తప్పు ఐటమ్, మిస్ అయిన ఐటమ్, ఆలస్యం)?",
+ "6. Advance / bulk orders (functions, offices, parties): how are they taken and tracked today?": "6. అడ్వాన్స్ / పెద్ద ఆర్డర్లు (ఫంక్షన్లు, ఆఫీసులు, పార్టీలు): ఈ రోజు అవి ఎలా తీసుకుంటారు, ఎలా గమనిస్తారు?",
+ "7. Repeat customers: any record of them? Any offers / combos run today?": "7. మళ్ళీ వచ్చే కస్టమర్లు: వారి రికార్డు ఏదైనా ఉందా? ఈ రోజు ఆఫర్లు / కాంబోలు నడుస్తున్నాయా?",
+ "8. Home delivery: radius km, minimum order ₹, who delivers?": "8. హోమ్ డెలివరీ: ఎంత దూరం (కి.మీ), కనీస ఆర్డర్ ₹, ఎవరు డెలివరీ చేస్తారు?",
+ "9. Biggest daily headache": "9. రోజూ అత్యంత పెద్ద తలనొప్పి",
+ "10. If your OWN WhatsApp ordering (no commission) brought direct orders with the bill ready, how interested are you?": "10. మీ సొంత WhatsApp ఆర్డరింగ్ (కమిషన్ లేకుండా) బిల్లుతో సిద్ధంగా నేరుగా ఆర్డర్లు తెస్తే, మీకు ఎంత ఆసక్తి?",
+ "Meals hotel": "భోజన హోటల్",
+ "Tiffin / breakfast": "టిఫిన్ / అల్పాహారం",
+ "Fast food": "ఫాస్ట్ ఫుడ్",
+ "Cafe / bakery": "కేఫ్ / బేకరీ",
+ "Printed": "ప్రింట్ చేసినది",
+ "Board": "బోర్డు",
+ "Digital / QR": "డిజిటల్ / QR",
+ "Own delivery": "సొంత డెలివరీ",
+ "Written slip": "రాసిన స్లిప్",
+ "Verbal": "నోటి మాట",
+ "KOT / software": "KOT / సాఫ్ట్‌వేర్",
+ "Order mistakes": "ఆర్డర్ తప్పులు",
+ "Billing queue": "బిల్లింగ్ క్యూ",
+ "Platform commissions": "ప్లాట్‌ఫాం కమిషన్లు",
+ "Staff shortage": "సిబ్బంది కొరత",
+ "Very": "చాలా",
+ "Somewhat": "కొంత",
+ "Not now": "ఇప్పుడు కాదు",
+ "1. Approx. how many different products (SKUs)?": "1. సుమారు ఎన్ని రకాల ప్రొడక్ట్‌లు (SKUలు)?",
+ "1b. Main categories": "1b. ముఖ్య రకాలు",
+ "2. Monthly khata households: how many?": "2. నెల ఖాతా ఇళ్ళు: ఎన్ని?",
+ "2b. Khata tracked in": "2b. ఖాతా దేనిలో రాస్తారు",
+ "2c. Khata app name (if app)": "2c. ఖాతా యాప్ పేరు (యాప్ అయితే)",
+ "2d. Settlement happens when?": "2d. సెటిల్‌మెంట్ ఎప్పుడు జరుగుతుంది?",
+ "3. Orders today per day: walk-in / phone / WhatsApp": "3. రోజుకు ఆర్డర్లు: నేరుగా / ఫోన్ / WhatsApp",
+ "4. Home delivery: radius, minimum order ₹, who delivers, delivery timings": "4. హోమ్ డెలివరీ: ఎంత దూరం, కనీస ఆర్డర్ ₹, ఎవరు డెలివరీ చేస్తారు, డెలివరీ వేళలు",
+ "5. Billing": "5. బిల్లింగ్",
+ "5b. Billing software name (if any)": "5b. బిల్లింగ్ సాఫ్ట్‌వేర్ పేరు (ఉంటే)",
+ "6. Expiry: how do you catch expired items today? Approx loss per month from expiry (range)?": "6. ఎక్స్‌పైరీ: గడువు ముగిసిన ఐటమ్‌లను ఈ రోజు ఎలా గుర్తిస్తారు? ఎక్స్‌పైరీ వల్ల నెలకు సుమారు నష్టం (రేంజ్)?",
+ "7. Suppliers: how many? Ordering by phone / salesman visit / app — delivery in how many days?": "7. సప్లయర్లు: ఎంతమంది? ఫోన్ / సేల్స్‌మన్ రాక / యాప్ ద్వారా ఆర్డర్ — ఎన్ని రోజుల్లో డెలివరీ?",
+ "8. Stock-outs: how do you learn an item has finished? How is the reorder list made?": "8. స్టాక్ అయిపోవడం: ఒక ఐటమ్ అయిపోయిందని ఎలా తెలుస్తుంది? మళ్ళీ ఆర్డర్ లిస్టు ఎలా తయారు చేస్తారు?",
+ "9. If regular households sent their monthly list on WhatsApp and got ONE monthly bill (khata automatic), would that help? How many households might use it?": "9. రెగ్యులర్ ఇళ్ళు తమ నెల లిస్టు WhatsApp లో పంపి, ఒకే నెల బిల్లు పొందితే (ఖాతా ఆటోమేటిక్), అది ఉపయోగపడుతుందా? ఎన్ని ఇళ్ళు వాడవచ్చు?",
+ "10. Biggest pain": "10. అత్యంత పెద్ద ఇబ్బంది",
+ "Barcode scanner": "బార్‌కోడ్ స్కానర్",
+ "Manual / calculator": "చేత్తో / క్యాలిక్యులేటర్",
+ "Khata tracking": "ఖాతా లెక్కలు",
+ "Stock-outs": "స్టాక్ అయిపోవడం",
+ "Expiry loss": "ఎక్స్‌పైరీ నష్టం",
+ "Billing speed": "బిల్లింగ్ వేగం",
+ "Delivery handling": "డెలివరీ నిర్వహణ",
+ "1. Practice areas": "1. ప్రాక్టీస్ రంగాలు",
+ "2. Active cases: approx. / New clients per month: approx.": "2. నడుస్తున్న కేసులు: సుమారు / నెలకు కొత్త క్లయింట్లు: సుమారు",
+ "3. How do new clients reach you?": "3. కొత్త క్లయింట్లు మిమ్మల్ని ఎలా చేరుకుంటారు?",
+ "4. First consultation: fee ₹": "4. మొదటి కన్సల్టేషన్: ఫీజు ₹",
+ "4b. Consultation booked how": "4b. కన్సల్టేషన్ ఎలా బుక్ చేస్తారు",
+ "5. Hearing dates: how tracked today": "5. హియరింగ్ తేదీలు: ఈ రోజు ఎలా గమనిస్తారు",
+ "5b. Excel / software name (if any)": "5b. Excel / సాఫ్ట్‌వేర్ పేరు (ఉంటే)",
+ "5c. Who maintains the hearing dates?": "5c. హియరింగ్ తేదీలు ఎవరు చూస్తారు?",
+ "6. Client status calls: approx. how many per day? How much of your / your clerk’s day goes in answering \"what happened to my case?\"": "6. క్లయింట్ స్టేటస్ కాల్స్: రోజుకు సుమారు ఎన్ని? \"నా కేసు ఏమైంది?\" అని జవాబు చెప్పడంలో మీ / మీ క్లర్క్ రోజులో ఎంత భాగం పోతుంది?",
+ "7. Client documents: collected": "7. క్లయింట్ డాక్యుమెంట్లు: ఎలా తీసుకుంటారు",
+ "7b. Documents filed how (physical file per case? scanned?)": "7b. డాక్యుమెంట్లు ఎలా ఫైల్ చేస్తారు (కేసుకు ఒక పేపర్ ఫైలా? స్కాన్ చేస్తారా?)",
+ "8. Staff: juniors / clerks — who maintains files, dates and client updates?": "8. సిబ్బంది: జూనియర్లు / క్లర్క్‌లు — ఫైళ్ళు, తేదీలు, క్లయింట్ అప్‌డేట్‌లు ఎవరు చూస్తారు?",
+ "9. Courts attended (towns / courts list)": "9. వెళ్ళే కోర్టులు (ఊర్లు / కోర్టుల లిస్టు)",
+ "10. Fees: how is who-paid / who-is-pending recorded today? Any difficulty in fee follow-up?": "10. ఫీజులు: ఎవరు కట్టారు / ఎవరిది పెండింగ్ అని ఈ రోజు ఎలా రాస్తారు? ఫీజు ఫాలో-అప్‌లో ఇబ్బంది ఉందా?",
+ "11. If clients automatically got hearing-date reminders and could see their case status without calling you, what would that free up for you?": "11. క్లయింట్లకు హియరింగ్ తేదీ రిమైండర్లు ఆటోమేటిక్‌గా వచ్చి, మీకు కాల్ చేయకుండా కేసు స్టేటస్ చూడగలిగితే, మీకు ఏది తేలికవుతుంది?",
+ "12. Interest in a system covering: client intake → case file → hearing reminders → client updates": "12. ఇవన్నీ కవర్ చేసే సిస్టమ్ మీద ఆసక్తి: క్లయింట్ తీసుకోవడం → కేసు ఫైల్ → హియరింగ్ రిమైండర్లు → క్లయింట్ అప్‌డేట్‌లు",
+ "Civil": "సివిల్",
+ "Criminal": "క్రిమినల్",
+ "Family": "కుటుంబ",
+ "Property / registration": "ఆస్తి / రిజిస్ట్రేషన్",
+ "Consumer": "కన్జ్యూమర్",
+ "Referrals": "రెఫరల్‌లు (తెలిసినవారు పంపడం)",
+ "Court premises": "కోర్టు ఆవరణ",
+ "Google / online": "Google / ఆన్‌లైన్",
+ "Phone from old clients": "పాత క్లయింట్ల ఫోన్",
+ "Walk-in": "నేరుగా రావడం",
+ "Phone appointment": "ఫోన్ అపాయింట్‌మెంట్",
+ "Through clerk": "క్లర్క్ ద్వారా",
+ "Diary": "డైరీ",
+ "Register": "రిజిస్టర్",
+ "Excel / software": "Excel / సాఫ్ట్‌వేర్",
+ "In person": "నేరుగా",
+ "Email": "ఈమెయిల్",
+ "1. Type of practice / specialty": "1. ప్రాక్టీస్ రకం / స్పెషాలిటీ",
+ "1b. Doctors in the clinic": "1b. క్లినిక్‌లో డాక్టర్లు",
+ "2. OP timings and days": "2. OP వేళలు, రోజులు",
+ "2b. Patients per day (range)": "2b. రోజుకు పేషెంట్లు (రేంజ్)",
+ "2c. Seasonal variation?": "2c. సీజన్‌తో మార్పు ఉందా?",
+ "3. Appointments % / walk-in %": "3. అపాయింట్‌మెంట్లు % / నేరుగా వచ్చేవారు %",
+ "3b. Booking today by": "3b. ఈ రోజు బుకింగ్ దేని ద్వారా",
+ "3c. Booking app name (if any)": "3c. బుకింగ్ యాప్ పేరు (ఉంటే)",
+ "4. Peak waiting time (minutes)": "4. అత్యంత ఎక్కువ వేచి ఉండే సమయం (నిమిషాలు)",
+ "4b. Patients who take a token and don’t return (no-shows) per day": "4b. టోకెన్ తీసుకుని తిరిగి రాని పేషెంట్లు (నో-షో) రోజుకు",
+ "5. Follow-up patients (BP, diabetes, reviews): approx. how many under follow-up?": "5. ఫాలో-అప్ పేషెంట్లు (BP, షుగర్, రివ్యూలు): సుమారు ఎంతమంది ఫాలో-అప్‌లో ఉన్నారు?",
+ "5b. Follow-up patients are reminded today": "5b. ఫాలో-అప్ పేషెంట్లకు ఈ రోజు ఎలా గుర్తు చేస్తారు",
+ "6. Consultation fee ₹": "6. కన్సల్టేషన్ ఫీజు ₹",
+ "6b. Payment modes": "6b. పేమెంట్ విధానాలు",
+ "7. Reports: patients bring lab reports as paper / photo on phone — between visits, do you review reports remotely?": "7. రిపోర్ట్‌లు: పేషెంట్లు ల్యాబ్ రిపోర్ట్‌లు పేపర్ / ఫోన్‌లో ఫోటోగా తెస్తారు — విజిట్‌ల మధ్య మీరు రిపోర్ట్‌లు దూరం నుండే చూస్తారా?",
+ "8. Pharmacy": "8. మందుల షాపు (ఫార్మసీ)",
+ "8b. Repeat prescriptions for chronic patients handled how?": "8b. దీర్ఘకాల పేషెంట్ల మళ్ళీ మందులు ఎలా నిర్వహిస్తారు?",
+ "9. Patient records today": "9. ఈ రోజు పేషెంట్ రికార్డులు",
+ "9b. Records software name (if any)": "9b. రికార్డుల సాఫ్ట్‌వేర్ పేరు (ఉంటే)",
+ "9c. How long to pull an old patient’s history?": "9c. పాత పేషెంట్ హిస్టరీ తీయడానికి ఎంత సమయం పడుతుంది?",
+ "10. Staff: receptionist / compounder — who manages the queue, calls and follow-ups?": "10. సిబ్బంది: రిసెప్షనిస్ట్ / కంపౌండర్ — క్యూ, కాల్స్, ఫాలో-అప్‌లు ఎవరు చూస్తారు?",
+ "11. If patients could book on WhatsApp / phone, get queue updates, and receive follow-up reminders automatically — what improves most for you?": "11. పేషెంట్లు WhatsApp / ఫోన్‌లో బుక్ చేసుకుని, క్యూ అప్‌డేట్‌లు పొంది, ఫాలో-అప్ రిమైండర్లు ఆటోమేటిక్‌గా పొందగలిగితే — మీకు అత్యంత మెరుగుపడేది ఏది?",
+ "12. After-hours / emergency calls: how handled today?": "12. వేళ కాని సమయం / ఎమర్జెన్సీ కాల్స్: ఈ రోజు ఎలా చూస్తారు?",
+ "Register at reception": "రిసెప్షన్ వద్ద రిజిస్టర్",
+ "Walk-in token only": "నేరుగా వచ్చి టోకెన్ మాత్రమే",
+ "No system": "ఏ సిస్టమ్ లేదు",
+ "Staff calls": "సిబ్బంది కాల్ చేస్తారు",
+ "Patient remembers": "పేషెంటే గుర్తుంచుకుంటారు",
+ "Cash": "నగదు",
+ "Card": "కార్డు",
+ "Attached": "అటాచ్‌డ్ (క్లినిక్‌కే)",
+ "Nearby tie-up": "దగ్గర్లో టై-అప్",
+ "Paper files": "పేపర్ ఫైళ్ళు",
+ "2. Which template fits this business?": "2. ఈ వ్యాపారానికి ఏ టెంప్లేట్ సరిపోతుంది?",
+ "2b. If custom — describe": "2b. కస్టమ్ అయితే — వివరించండి",
+ "3. Fit score for our standard product": "3. మన స్టాండర్డ్ ప్రొడక్ట్‌కు ఫిట్ స్కోర్",
+ "3b. If not a fit — why": "3b. సరిపోకపోతే — ఎందుకు",
+ "4. Setup data readiness": "4. సెటప్ డేటా సిద్ధత",
+ "5. Decision maker": "5. నిర్ణయం తీసుకునే వ్యక్తి",
+ "5b. If not met — who was met instead": "5b. కలవకపోతే — బదులుగా ఎవరిని కలిశారు",
+ "6. Interest level": "6. ఆసక్తి స్థాయి",
+ "7. Owner’s TOP pain in one line (their words)": "7. ఓనర్ యొక్క అత్యంత పెద్ద ఇబ్బంది ఒక్క లైన్‌లో (వారి మాటల్లో)",
+ "8. What did the owner say when the monthly-fee idea came up (reaction, any number they mentioned)?": "8. నెల ఫీజు ఆలోచన చెప్పినప్పుడు ఓనర్ ఏమన్నారు (స్పందన, వారు చెప్పిన నంబర్ ఏదైనా)?",
+ "9. Pilot agreed?": "9. పైలట్‌కు ఒప్పుకున్నారా?",
+ "9b. Pilot start date": "9b. పైలట్ మొదలయ్యే తేదీ",
+ "10. Next step (office to call / demo visit / setup data collection / drop)": "10. తదుపరి అడుగు (ఆఫీసు కాల్ / డెమో విజిట్ / సెటప్ డేటా సేకరణ / వదిలేయడం)",
+ "10b. Next step date": "10b. తదుపరి అడుగు తేదీ",
+ "11. Anything unusual: competitor already using a system (name), special request, language issue, partner/family decision pending, etc.": "11. ఏదైనా ప్రత్యేకం: ఇప్పటికే సిస్టమ్ వాడుతున్న పోటీదారు (పేరు), ప్రత్యేక అభ్యర్థన, భాషా సమస్య, పార్ట్‌నర్/కుటుంబ నిర్ణయం పెండింగ్, మొదలైనవి",
+ "Ordering app (order → approve → invoice → delivery)": "ఆర్డరింగ్ యాప్ (ఆర్డర్ → అప్రూవ్ → ఇన్‌వాయిస్ → డెలివరీ)",
+ "Appointment scheduler (slots + reminders)": "అపాయింట్‌మెంట్ షెడ్యూలర్ (స్లాట్‌లు + రిమైండర్లు)",
+ "Case manager (files + hearing reminders)": "కేస్ మేనేజర్ (ఫైళ్ళు + హియరింగ్ రిమైండర్లు)",
+ "Custom": "కస్టమ్",
+ "Ready fit": "వెంటనే సరిపోయేవి",
+ "Fit with small changes": "చిన్న మార్పులతో సరిపోతుంది",
+ "Needs major custom work": "పెద్ద కస్టమ్ పని కావాలి",
+ "Not a fit": "సరిపోనివి",
+ "Price list / menu / fee chart collected": "ధరల లిస్టు / మెనూ / ఫీజు చార్టు తీసుకున్నారు",
+ "Bill sample collected": "బిల్లు నమూనా తీసుకున్నారు",
+ "Catalogue photos exist": "కేటలాగ్ ఫోటోలు ఉన్నాయి",
+ "None — must be created": "ఏదీ లేదు — తయారు చేయాలి",
+ "Met and positive": "కలిశారు, పాజిటివ్",
+ "Met, neutral": "కలిశారు, తటస్థం",
+ "Not met": "కలవలేదు",
+ "Met and negative": "కలిశారు, నెగటివ్",
+ "Hot — asked \"when can we start?\"": "హాట్ — \"ఎప్పుడు మొదలు పెట్టవచ్చు?\" అని అడిగారు",
+ "Warm — positive, wants demo / details": "వార్మ్ — పాజిటివ్, డెమో / వివరాలు కావాలి",
+ "Cold — polite, no clear need": "కోల్డ్ — మర్యాదగా, స్పష్టమైన అవసరం లేదు",
+ "No — refused": "కాదు — నిరాకరించారు",
+ "Wants demo first": "ముందు డెమో కావాలి",
+ "Will decide after office call": "ఆఫీసు కాల్ తర్వాత నిర్ణయిస్తారు",
+ "SURVEY": "సర్వే",
+ "Staff & HR": "సిబ్బంది & HR",
+ "Sign out": "సైన్ అవుట్",
+ "Survey": "సర్వే",
+ "Field survey visits. Drafts save automatically — a visit is only final after Submit, and Part C is filled after leaving the shop.": "ఫీల్డ్ సర్వే విజిట్‌లు. డ్రాఫ్ట్‌లు ఆటోమేటిక్‌గా సేవ్ అవుతాయి — Submit చేసిన తర్వాతే విజిట్ ఫైనల్, Part C షాపు నుండి బయటకు వచ్చిన తర్వాత నింపాలి.",
+ "+ New visit": "+ కొత్త విజిట్",
+ "Visits": "విజిట్‌లు",
+ "Date": "తేదీ",
+ "Business": "వ్యాపారం",
+ "Type": "రకం",
+ "Town": "ఊరు",
+ "Status": "స్టేటస్",
+ "Submitted by": "సమర్పించినవారు",
+ "Loading…": "లోడ్ అవుతోంది…",
+ "Office dashboard": "ఆఫీసు డాష్‌బోర్డ్",
+ "Visits by type": "రకం వారీగా విజిట్‌లు",
+ "⬇ Export CSV (Results Tracker columns)": "⬇ CSV ఎగుమతి (Results Tracker కాలమ్‌లు)",
+ "Issue Reports": "సమస్య నివేదికలు",
+ "Title": "శీర్షిక",
+ "Severity": "తీవ్రత",
+ "Analyze with AI": "AI తో విశ్లేషించండి",
+ "Mark Resolved": "పరిష్కరించినట్టు గుర్తించండి",
+ "← Back to list": "← లిస్టుకు వెనక్కి",
+ "New visit": "కొత్త విజిట్",
+ "Visit": "విజిట్",
+ "Answers save as a draft automatically. Never quote a fee or promise a date — wishes are requirements.": "సమాధానాలు డ్రాఫ్ట్‌గా ఆటోమేటిక్‌గా సేవ్ అవుతాయి. ఫీజు ఎప్పుడూ చెప్పవద్దు, తేదీ వాగ్దానం చేయవద్దు — కోరికలే అవసరాలు.",
+ "← Back": "← వెనక్కి",
+ "Save & exit": "సేవ్ చేసి బయటకు",
+ "Next →": "తదుపరి →",
+ "Submit visit": "విజిట్ సమర్పించండి",
+ "Save changes": "మార్పులు సేవ్ చేయండి",
+ "Part C — Engineer wrap-up (internal, after the visit)": "Part C — ఇంజనీర్ ముగింపు (అంతర్గతం, విజిట్ తర్వాత)",
+ "Part C — Engineer wrap-up (editable)": "Part C — ఇంజనీర్ ముగింపు (మార్చవచ్చు)",
+ "Part C — Engineer wrap-up (fill after leaving the shop)": "Part C — ఇంజనీర్ ముగింపు (షాపు నుండి బయటకు వచ్చిన తర్వాత నింపండి)",
+ "Save wrap-up": "ముగింపు సేవ్ చేయండి",
+ "Save Part C changes": "Part C మార్పులు సేవ్ చేయండి",
+ "Save wrap-up & complete visit": "ముగింపు సేవ్ చేసి విజిట్ పూర్తి చేయండి",
+ "— select —": "— ఎంచుకోండి —",
+ "Please specify…": "వివరంగా చెప్పండి…",
+ "Business type": "వ్యాపారం రకం",
+ "Visit date": "విజిట్ తేదీ",
+ "The type decides which Part B module appears later. Everything else (Part A) is asked for every business.": "ఏ Part B ప్రశ్నలు వస్తాయో ఈ రకమే నిర్ణయిస్తుంది. మిగిలినదంతా (Part A) ప్రతి వ్యాపారానికీ అడుగుతారు.",
+ "A10. Samples collected (tick + upload photo)": "A10. తీసుకున్న నమూనాలు (టిక్ చేసి ఫోటో అప్‌లోడ్ చేయండి)",
+ "Upload photos": "ఫోటోలు అప్‌లోడ్ చేయండి",
+ "Photos upload to this visit (the draft is created automatically first). JPG / PNG / WebP, max 5 MB each. Ask permission before photographing.": "ఫోటోలు ఈ విజిట్‌కు అప్‌లోడ్ అవుతాయి (ముందు డ్రాఫ్ట్ ఆటోమేటిక్‌గా తయారవుతుంది). JPG / PNG / WebP, ఒక్కోటి గరిష్టం 5 MB. ఫోటో తీసే ముందు అనుమతి అడగండి.",
+ "Upload": "అప్‌లోడ్",
+ "Uploaded": "అప్‌లోడ్ అయినవి",
+ "Nothing uploaded yet.": "ఇంకా ఏదీ అప్‌లోడ్ కాలేదు.",
+ "Pick the business type in Step 1 (Start) first — the matching Part B module appears here.": "ముందు 1వ అడుగు (మొదలు) లో వ్యాపారం రకం ఎంచుకోండి — దానికి సరిపోయే Part B ప్రశ్నలు ఇక్కడ వస్తాయి.",
+ "Review & submit": "చివరి చెక్ & సమర్పణ",
+ "Business name": "వ్యాపారం పేరు",
+ "Owner": "ఓనర్",
+ "Owner WhatsApp": "ఓనర్ WhatsApp",
+ "Orders / day": "రోజుకు ఆర్డర్లు",
+ "Missed enquiries / week": "వారంలో మిస్ అయిన ఎంక్వైరీలు",
+ "Fee comfort": "ఫీజు సౌకర్యం",
+ "Top pain (A7)": "పెద్ద ఇబ్బంది (A7)",
+ "One thing to fix (A7)": "సరిచేయాల్సిన ఒక్కటి (A7)",
+ "Pilot interest (A9)": "పైలట్ ఆసక్తి (A9)",
+ "business type": "వ్యాపారం రకం",
+ "business name": "వ్యాపారం పేరు",
+ "town": "ఊరు",
+ "owner WhatsApp number": "ఓనర్ WhatsApp నంబర్",
+ "Still needed before submit: {list}. Use Back to fill them.": "సమర్పించే ముందు ఇవి ఇంకా కావాలి: {list}. వెనక్కి వెళ్ళి నింపండి.",
+ "All required fields are filled. Submit when the visit is done — Part C is filled afterwards.": "కావాల్సినవన్నీ నింపారు. విజిట్ అయిపోగానే సమర్పించండి — Part C తర్వాత నింపుతారు.",
+ "Saving…": "సేవ్ అవుతోంది…",
+ "Draft saved": "డ్రాఫ్ట్ సేవ్ అయింది",
+ "Not sent yet — your answers are kept on this phone and will be sent when the connection is back": "ఇంకా పంపలేదు — మీ సమాధానాలు ఈ ఫోన్‌లోనే ఉన్నాయి, కనెక్షన్ రాగానే పంపుతాం",
+ "Save failed": "సేవ్ కాలేదు",
+ "Unsaved changes…": "సేవ్ కాని మార్పులు…",
+ "Restored answers that were not sent yet": "ఇంకా పంపని సమాధానాలు తిరిగి తెచ్చాం",
+ "(no name yet)": "(ఇంకా పేరు లేదు)",
+ "No visits yet. Start with \"+ New visit\".": "ఇంకా విజిట్‌లు లేవు. \"+ కొత్త విజిట్\" తో మొదలు పెట్టండి.",
+ "Continue": "కొనసాగించండి",
+ "Open": "తెరవండి",
+ "Edit": "మార్చండి",
+ "Total visits": "మొత్తం విజిట్‌లు",
+ "Hot leads": "హాట్ లీడ్‌లు",
+ "Warm leads": "వార్మ్ లీడ్‌లు",
+ "Pilots agreed": "పైలట్‌కు ఒప్పుకున్నవి",
+ "Want demo first": "ముందు డెమో కావాలన్నవి",
+ "Fit, small changes": "చిన్న మార్పులతో సరిపోయేవి",
+ "Major custom": "పెద్ద కస్టమ్",
+ "No issues reported yet.": "ఇంకా సమస్యలు ఏవీ నివేదించలేదు.",
+ "View": "చూడండి",
+ "Reported by": "నివేదించినవారు",
+ "Area": "ఏరియా",
+ "Description": "వివరణ",
+ "Steps": "స్టెప్స్",
+ "Low": "తక్కువ",
+ "Medium": "మధ్యస్థం",
+ "High": "ఎక్కువ",
+ "Critical": "అత్యంత తీవ్రం",
+ "Intern": "ఇంటర్న్",
+ "Trainee": "ట్రైనీ",
+ "Engineer": "ఇంజనీర్",
+ "Sr Engineer": "సీనియర్ ఇంజనీర్",
+ "Manager": "మేనేజర్",
+ "Branch Manager": "బ్రాంచ్ మేనేజర్",
+ "Admin": "అడ్మిన్",
+ "Answers for {name} are kept on this phone but were not sent yet.": "{name} యొక్క సమాధానాలు ఈ ఫోన్‌లోనే ఉన్నాయి, ఇంకా పంపలేదు.",
+ "a new visit": "ఒక కొత్త విజిట్",
+ "visit": "విజిట్",
+ "Resume": "కొనసాగించండి",
+ "Choose a photo for {kind} first.": "ముందు {kind} కోసం ఫోటో ఎంచుకోండి.",
+ "Could not create the draft — check connection and try again.": "డ్రాఫ్ట్ తయారు కాలేదు — కనెక్షన్ చూసి మళ్ళీ ప్రయత్నించండి.",
+ "Pick the business type first.": "ముందు వ్యాపారం రకం ఎంచుకోండి.",
+ "Your answers are not sent yet — they are kept on this phone. Wait for \"Draft saved\", then tap Submit again.": "మీ సమాధానాలు ఇంకా పంపలేదు — అవి ఈ ఫోన్‌లోనే ఉన్నాయి. \"డ్రాఫ్ట్ సేవ్ అయింది\" వచ్చే వరకు ఆగి, మళ్ళీ Submit నొక్కండి.",
+ "Visit submitted! Returning to survey home…": "విజిట్ సమర్పించారు! సర్వే హోమ్‌కు తిరిగి వెళ్తోంది…",
+ "Part C saved.": "Part C సేవ్ అయింది.",
+ "Changes saved.": "మార్పులు సేవ్ అయ్యాయి.",
+ "Analyzing…": "విశ్లేషిస్తోంది…",
+ "Analysis complete. Copy the \"Claude Code prompt\" at the end and paste it into your terminal to begin the fix.": "విశ్లేషణ పూర్తయింది. చివర్లో ఉన్న \"Claude Code prompt\" ను కాపీ చేసి, మీ టెర్మినల్‌లో పేస్ట్ చేసి పరిష్కారం మొదలు పెట్టండి.",
+ "Issue marked as resolved.": "సమస్య పరిష్కరించినట్టు గుర్తించాం."
+};
+const STATUS_TE = {"draft": "డ్రాఫ్ట్", "submitted": "సమర్పించారు", "completed": "పూర్తయింది"};
+const tr = s => (LANG === 'te' && s && TE[s]) || s;
+function trf(key, subs) { let s = tr(key); for (const k in (subs || {})) s = s.split('{' + k + '}').join(subs[k]); return s; }
+const statusLabel = s => (LANG === 'te' && STATUS_TE[s]) || s;
+const visitTitle = v => tr('Visit') + ' #' + v.id + ' (' + statusLabel(v.status) + ')';
+function paintStatic() {
+  document.documentElement.lang = LANG === 'te' ? 'te' : 'en';
+  document.title = LANG === 'te' ? 'సర్వే — PlotFarms PA' : 'Survey — PlotFarms PA';
+  const eb = $('langEnBtn'), tb = $('langTeBtn');
+  if (eb) eb.classList.toggle('on', LANG === 'en');
+  if (tb) tb.classList.toggle('on', LANG === 'te');
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = tr(el.dataset.i18n); });
+}
+function applyLanguage() {
+  paintStatic();
+  if (!$('wizardView').classList.contains('hidden') && current) {
+    captureLocal();
+    $('wizTitle').textContent = current.id ? visitTitle(current) : tr('New visit');
+    renderStepper();
+    renderStep();
+    renderPartC();
+  } else if (me) {
+    showList();
+  }
+}
+function setLang(l) {
+  if (l === LANG) { paintStatic(); return; }
+  LANG = l;
+  try { localStorage.setItem('lang', l); } catch { /* ignore */ }
+  applyLanguage();
+}
+
 
 let me = null;
 let current = null;      // visit being edited (object from the API)
@@ -467,31 +1008,31 @@ function showError(id, msg) { const el = $(id); el.textContent = msg || ''; el.s
 /* ---------------- field rendering / reading ---------------- */
 function fieldHtml(f, scope, values) {
   const v = values ? values[f.k] : undefined;
-  const label = `<label class="flabel" for="${scope}_${f.k}">${esc(f.label)}</label>`;
+  const label = `<label class="flabel" for="${scope}_${f.k}">${esc(tr(f.label))}</label>`;
   if (f.type === 'textarea') return label + `<textarea id="${scope}_${f.k}" data-scope="${scope}" data-key="${f.k}">${esc(v || '')}</textarea>`;
   if (f.type === 'select') {
-    const opts = ['<option value="">— select —</option>'].concat(f.options.map(o =>
-      `<option value="${esc(o)}" ${v === o ? 'selected' : ''}>${esc((f.labels && f.labels[o]) || o)}</option>`)).join('');
+    const opts = ['<option value="">' + esc(tr('— select —')) + '</option>'].concat(f.options.map(o =>
+      `<option value="${esc(o)}" ${v === o ? 'selected' : ''}>${esc(tr((f.labels && f.labels[o]) || o))}</option>`)).join('');
     let html = label + `<select id="${scope}_${f.k}" data-scope="${scope}" data-key="${f.k}">${opts}</select>`;
     if (f.options.includes('Other')) {
       const ov = values ? values[f.k + '_other'] : undefined;
       html += `<input type="text" class="other-specify${v === 'Other' ? '' : ' hidden'}" ` +
         `data-scope="${scope}" data-key="${f.k}_other" ` +
         `data-parent-scope="${scope}" data-parent-key="${f.k}" ` +
-        `placeholder="Please specify…" value="${esc(ov || '')}">`;
+        `placeholder="${esc(tr('Please specify…'))}" value="${esc(ov || '')}">`;
     }
     return html;
   }
   if (f.type === 'checks') {
     const arr = Array.isArray(v) ? v : [];
     let html = label + '<div class="checks">' + f.options.map(o =>
-      `<label><input type="checkbox" data-scope="${scope}" data-key="${f.k}" value="${esc(o)}" ${arr.includes(o) ? 'checked' : ''}> ${esc(o)}</label>`).join('') + '</div>';
+      `<label><input type="checkbox" data-scope="${scope}" data-key="${f.k}" value="${esc(o)}" ${arr.includes(o) ? 'checked' : ''}> ${esc(tr(o))}</label>`).join('') + '</div>';
     if (f.options.includes('Other')) {
       const ov = values ? values[f.k + '_other'] : undefined;
       html += `<input type="text" class="other-specify${arr.includes('Other') ? '' : ' hidden'}" ` +
         `data-scope="${scope}" data-key="${f.k}_other" ` +
         `data-parent-scope="${scope}" data-parent-key="${f.k}" ` +
-        `placeholder="Please specify…" value="${esc(ov || '')}">`;
+        `placeholder="${esc(tr('Please specify…'))}" value="${esc(ov || '')}">`;
     }
     return html;
   }
@@ -515,7 +1056,7 @@ function readScope(scope) {
 function sectionsHtml(ids, scope, values) {
   return ids.map(id => {
     const sec = PART_A.find(s => s.id === id);
-    return `<h2>${esc(sec.title)}</h2>` + sec.fields.map(f => fieldHtml(f, scope, values)).join('');
+    return `<h2>${esc(tr(sec.title))}</h2>` + sec.fields.map(f => fieldHtml(f, scope, values)).join('');
   }).join('');
 }
 
@@ -616,7 +1157,7 @@ async function saveDraft() {
   const target = current;
   const sentSeq = editSeq;
   let retry = false;
-  $('saveState').textContent = 'Saving…';
+  $('saveState').textContent = tr('Saving…');
   try {
     const payload = buildPayload();
     const wasNew = !target.id;
@@ -630,19 +1171,19 @@ async function saveDraft() {
     if (changed) Object.assign(target, local);
     if (wasNew) {
       clearBackup(null);
-      if (current === target) $('wizTitle').textContent = 'Visit #' + target.id + ' (draft)';
+      if (current === target) $('wizTitle').textContent = visitTitle(target);
     }
     if (changed) { if (current === target) backupLocal(); saveAgain = true; }
     else {
       dirty = false;
       clearBackup(target.id);
-      $('saveState').textContent = 'Draft saved ' + new Date().toLocaleTimeString();
+      $('saveState').textContent = tr('Draft saved') + ' ' + new Date().toLocaleTimeString();
     }
   } catch (e) {
     retry = target.status === 'draft' && (!e.status || e.status >= 500);
     $('saveState').textContent = retry
-      ? 'Not sent yet — your answers are kept on this phone and will be sent when the connection is back'
-      : 'Save failed — ' + e.message;
+      ? tr('Not sent yet — your answers are kept on this phone and will be sent when the connection is back')
+      : tr('Save failed') + ' — ' + e.message;
   } finally {
     saving = false;
     if (current === target) {
@@ -660,12 +1201,17 @@ function scheduleSave() {
   if (current.status === 'draft') {
     backupLocal();
   }
-  $('saveState').textContent = 'Unsaved changes…';
+  $('saveState').textContent = tr('Unsaved changes…');
   clearTimeout(saveTimer);
   saveTimer = setTimeout(saveDraft, 1200);
 }
 
 /* ---------------- wizard rendering ---------------- */
+function renderStepper() {
+  $('stepper').innerHTML = STEPS.map((s, i) => `<span data-step="${i}">${i + 1}. ${esc(tr(s.title))}</span>`).join('');
+  document.querySelectorAll('#stepper span').forEach(el => el.addEventListener('click', async () => { await saveDraft(); gotoStep(Number(el.dataset.step)); }));
+}
+
 function renderStep() {
   document.querySelectorAll('#stepper span').forEach((el, i) => el.classList.toggle('on', i === step));
   const body = $('stepBody');
@@ -674,51 +1220,51 @@ function renderStep() {
   let html = '';
 
   if (step === 0) {
-    html = '<h2 style="margin-top:0;">Business type</h2><div class="types">' + TYPES.map(([code, label]) =>
-      `<label data-type="${code}" class="${type === code ? 'sel' : ''}"><input type="radio" name="btype" value="${code}" ${type === code ? 'checked' : ''}> ${esc(label)}</label>`).join('') +
+    html = '<h2 style="margin-top:0;">' + esc(tr('Business type')) + '</h2><div class="types">' + TYPES.map(([code, label]) =>
+      `<label data-type="${code}" class="${type === code ? 'sel' : ''}"><input type="radio" name="btype" value="${code}" ${type === code ? 'checked' : ''}> ${esc(tr(label))}</label>`).join('') +
       '</div>' +
-      `<label class="flabel" for="visit_date">Visit date</label><input type="date" id="visit_date" value="${esc((current && current.visit_date_local) || (current && current.visit_date ? String(current.visit_date).slice(0, 10) : '') || new Date().toISOString().slice(0, 10))}">` +
-      '<p class="sub" style="margin-top:14px;">The type decides which Part B module appears later. Everything else (Part A) is asked for every business.</p>';
+      `<label class="flabel" for="visit_date">${tr('Visit date')}</label><input type="date" id="visit_date" value="${esc((current && current.visit_date_local) || (current && current.visit_date ? String(current.visit_date).slice(0, 10) : '') || new Date().toISOString().slice(0, 10))}">` +
+      '<p class="sub" style="margin-top:14px;">' + esc(tr('The type decides which Part B module appears later. Everything else (Part A) is asked for every business.')) + '</p>';
   } else if (step >= 1 && step <= 5) {
     html = sectionsHtml(STEPS[step].sections, 'a', a);
   } else if (step === 6) {
     const samples = Array.isArray(a.samples) ? a.samples : [];
     const atts = (current && current.attachments) || [];
-    html = '<h2 style="margin-top:0;">A10. Samples collected (tick + upload photo)</h2>' +
+    html = '<h2 style="margin-top:0;">' + esc(tr('A10. Samples collected (tick + upload photo)')) + '</h2>' +
       '<div class="checks">' + SAMPLES.map(([kind, label]) =>
-        `<label><input type="checkbox" data-scope="a" data-key="samples" value="${kind}" ${samples.includes(kind) ? 'checked' : ''}> ${esc(label)}</label>`).join('') + '</div>' +
-      '<h2>Upload photos</h2><p class="sub">Photos upload to this visit (the draft is created automatically first). JPG / PNG / WebP, max 5 MB each. Ask permission before photographing.</p>' +
+        `<label><input type="checkbox" data-scope="a" data-key="samples" value="${kind}" ${samples.includes(kind) ? 'checked' : ''}> ${esc(tr(label))}</label>`).join('') + '</div>' +
+      '<h2>' + esc(tr('Upload photos')) + '</h2><p class="sub">' + esc(tr('Photos upload to this visit (the draft is created automatically first). JPG / PNG / WebP, max 5 MB each. Ask permission before photographing.')) + '</p>' +
       SAMPLES.map(([kind, label]) =>
-        `<div class="upload-row"><span class="k">${esc(label)}</span><input type="file" id="file_${kind}" accept="image/jpeg,image/png,image/webp"><button type="button" class="ghost" data-upload="${kind}">Upload</button></div>`).join('') +
-      '<h2>Uploaded</h2>' + (atts.length
+        `<div class="upload-row"><span class="k">${esc(tr(label))}</span><input type="file" id="file_${kind}" accept="image/jpeg,image/png,image/webp"><button type="button" class="ghost" data-upload="${kind}">${esc(tr('Upload'))}</button></div>`).join('') +
+      '<h2>' + esc(tr('Uploaded')) + '</h2>' + (atts.length
         ? atts.map(x => `<p><a href="/api/attachments/${x.id}" target="_blank" rel="noopener">${esc(x.kind)}</a> <span class="sub">— ${esc(x.uploaded_by)}, ${esc(String(x.created_at).slice(0, 16).replace('T', ' '))}</span></p>`).join('')
-        : '<p class="sub">Nothing uploaded yet.</p>');
+        : '<p class="sub">' + esc(tr('Nothing uploaded yet.')) + '</p>');
   } else if (step === 7) {
     if (!type || !PART_B[type]) {
-      html = '<h2 style="margin-top:0;">Type module</h2><p class="sub">Pick the business type in Step 1 (Start) first — the matching Part B module appears here.</p>';
+      html = '<h2 style="margin-top:0;">' + esc(tr('Type module')) + '</h2><p class="sub">' + esc(tr('Pick the business type in Step 1 (Start) first — the matching Part B module appears here.')) + '</p>';
     } else {
       const mod = PART_B[type];
-      html = `<h2 style="margin-top:0;">${esc(mod.title)}</h2>` + mod.fields.map(f => fieldHtml(f, 'b', (current.part_b || {})[type] || {})).join('');
+      html = `<h2 style="margin-top:0;">${esc(tr(mod.title))}</h2>` + mod.fields.map(f => fieldHtml(f, 'b', (current.part_b || {})[type] || {})).join('');
     }
   } else if (step === 8) {
     const p = buildPayload();
     const rows = [
-      ['Business type', TYPE_LABEL[p.business_type] || ''], ['Business name', p.business_name], ['Town', p.town],
+      ['Business type', tr(TYPE_LABEL[p.business_type] || '')], ['Business name', p.business_name], ['Town', p.town],
       ['Owner', p.owner_name], ['Owner WhatsApp', p.owner_whatsapp], ['Visit date', p.visit_date || String(current.visit_date || '').slice(0, 10)],
       ['Orders / day', p.orders_per_day], ['Missed enquiries / week', p.missed_enquiries_per_week],
-      ['Fee comfort', (Object.fromEntries(FEE_OPTIONS)[p.fee_comfort]) || ''],
-      ['Top pain (A7)', p.part_a.pain_top1], ['One thing to fix (A7)', p.part_a.fix_one_thing],
-      ['Pilot interest (A9)', p.part_a.pilot_interest],
+      ['Fee comfort', tr((Object.fromEntries(FEE_OPTIONS)[p.fee_comfort]) || '')],
+      ['Top pain (A7)', tr(p.part_a.pain_top1 || '')], ['One thing to fix (A7)', p.part_a.fix_one_thing],
+      ['Pilot interest (A9)', tr(p.part_a.pilot_interest || '')],
     ];
     const missing = [];
     if (!p.business_type) missing.push('business type');
     if (!p.business_name) missing.push('business name');
     if (!p.town) missing.push('town');
     if (!p.owner_whatsapp) missing.push('owner WhatsApp number');
-    html = '<h2 style="margin-top:0;">Review &amp; submit</h2><dl class="review">' +
-      rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v || '—')}</dd>`).join('') + '</dl>' +
-      (missing.length ? `<p class="sub" style="color:var(--err); margin-top:14px;">Still needed before submit: ${esc(missing.join(', '))}. Use Back to fill them.</p>`
-                      : '<p class="sub" style="margin-top:14px;">All required fields are filled. Submit when the visit is done — Part C is filled afterwards.</p>');
+    html = '<h2 style="margin-top:0;">' + esc(tr('Review & submit')) + '</h2><dl class="review">' +
+      rows.map(([k, v]) => `<dt>${esc(tr(k))}</dt><dd>${esc(v || '—')}</dd>`).join('') + '</dl>' +
+      (missing.length ? `<p class="sub" style="color:var(--err); margin-top:14px;">${esc(trf('Still needed before submit: {list}. Use Back to fill them.', { list: missing.map(m => tr(m)).join(', ') }))}</p>`
+                      : '<p class="sub" style="margin-top:14px;">' + esc(tr('All required fields are filled. Submit when the visit is done — Part C is filled afterwards.')) + '</p>');
   }
 
   body.innerHTML = html;
@@ -761,10 +1307,10 @@ function renderStep() {
 
 async function uploadPhoto(kind) {
   const input = $('file_' + kind);
-  if (!input || !input.files || !input.files[0]) { showError('wizError', 'Choose a photo for ' + kind + ' first.'); return; }
+  if (!input || !input.files || !input.files[0]) { showError('wizError', trf('Choose a photo for {kind} first.', { kind })); return; }
   showError('wizError', '');
   await saveDraft();
-  if (!current || !current.id) { showError('wizError', 'Could not create the draft — check connection and try again.'); return; }
+  if (!current || !current.id) { showError('wizError', tr('Could not create the draft — check connection and try again.')); return; }
   const fd = new FormData();
   fd.append('kind', kind);
   fd.append('file', input.files[0]);
@@ -801,9 +1347,11 @@ function showPendingNotice() {
   const el = $('listNotice');
   const pending = pendingBackups();
   if (!pending.length) { el.style.display = 'none'; return; }
-  el.innerHTML = pending.map((b, i) =>
-    `<p>Answers for ${esc((b.part_a && b.part_a.business_name) || (b.id ? 'visit #' + b.id : 'a new visit'))} are kept on this phone but were not sent yet. ` +
-    `<button type="button" class="ghost" data-resume="${i}">Resume</button></p>`).join('');
+  el.innerHTML = pending.map((b, i) => {
+    const name = (b.part_a && b.part_a.business_name) || (b.id ? tr('visit') + ' #' + b.id : tr('a new visit'));
+    return `<p>${esc(trf('Answers for {name} are kept on this phone but were not sent yet.', { name }))} ` +
+    `<button type="button" class="ghost" data-resume="${i}">${esc(tr('Resume'))}</button></p>`;
+  }).join('');
   el.style.display = 'block';
   el.querySelectorAll('[data-resume]').forEach(btn => btn.addEventListener('click', async () => {
     const b = pending[Number(btn.dataset.resume)];
@@ -830,15 +1378,14 @@ function openWizard(visit) {
     if (bk.visit_date_local) current.visit_date_local = bk.visit_date_local;
     dirty = true;
     editSeq += 1;
-    $('saveState').textContent = 'Restored answers that were not sent yet';
+    $('saveState').textContent = tr('Restored answers that were not sent yet');
     saveTimer = setTimeout(saveDraft, 800);
   }
   step = 0;
   $('listView').classList.add('hidden');
   $('wizardView').classList.remove('hidden');
-  $('wizTitle').textContent = current.id ? `Visit #${current.id} (${current.status})` : 'New visit';
-  $('stepper').innerHTML = STEPS.map((s, i) => `<span data-step="${i}">${i + 1}. ${esc(s.title)}</span>`).join('');
-  document.querySelectorAll('#stepper span').forEach(el => el.addEventListener('click', async () => { await saveDraft(); gotoStep(Number(el.dataset.step)); }));
+  $('wizTitle').textContent = current.id ? visitTitle(current) : tr('New visit');
+  renderStepper();
   renderStep();
   renderPartC();
   window.scrollTo(0, 0);
@@ -849,9 +1396,9 @@ function renderPartC() {
   if (!current || !current.id || current.status === 'draft') { panel.classList.add('hidden'); return; }
   panel.classList.remove('hidden');
   $('partCTitle').textContent = current.status === 'completed'
-    ? 'Part C — Engineer wrap-up (editable)'
-    : 'Part C — Engineer wrap-up (fill after leaving the shop)';
-  $('wrapupBtn').textContent = current.status === 'completed' ? 'Save Part C changes' : 'Save wrap-up & complete visit';
+    ? tr('Part C — Engineer wrap-up (editable)')
+    : tr('Part C — Engineer wrap-up (fill after leaving the shop)');
+  $('wrapupBtn').textContent = current.status === 'completed' ? tr('Save Part C changes') : tr('Save wrap-up & complete visit');
   $('partCBody').innerHTML = PART_C.map(f => fieldHtml(f, 'c', current.part_c || {})).join('');
   $('partCOk').style.display = 'none';
   $('partCError').style.display = 'none';
@@ -873,15 +1420,15 @@ async function loadVisits() {
   try {
     const rows = await api('/api/visits');
     $('visitsBody').innerHTML = rows.length ? rows.map(v =>
-      `<tr><td>${esc(String(v.visit_date || '').slice(0, 10))}</td><td>${esc(v.business_name || '(no name yet)')}</td>` +
-      `<td>${esc(TYPE_LABEL[v.business_type] || '')}</td><td>${esc(v.town || '')}</td>` +
-      `<td><span class="pill ${esc(v.status)}">${esc(v.status)}</span></td>` +
+      `<tr><td>${esc(String(v.visit_date || '').slice(0, 10))}</td><td>${esc(v.business_name || tr('(no name yet)'))}</td>` +
+      `<td>${esc(tr(TYPE_LABEL[v.business_type] || ''))}</td><td>${esc(v.town || '')}</td>` +
+      `<td><span class="pill ${esc(v.status)}">${esc(statusLabel(v.status))}</span></td>` +
       `<td>${esc(v.submitted_by || '')}</td>` +
       (v.status === 'completed'
-        ? `<td><a class="btn ghost" href="/api/visits/${v.id}/pdf" target="_blank" rel="noopener" style="font-size:13px;padding:6px 11px;">PDF</a> <button type="button" class="ghost" data-open="${v.id}" style="margin-left:4px;">Edit</button></td>`
-        : `<td><button type="button" class="ghost" data-open="${v.id}">${v.status === 'draft' ? 'Continue' : 'Open'}</button></td>`)
+        ? `<td><a class="btn ghost" href="/api/visits/${v.id}/pdf" target="_blank" rel="noopener" style="font-size:13px;padding:6px 11px;">PDF</a> <button type="button" class="ghost" data-open="${v.id}" style="margin-left:4px;">${tr('Edit')}</button></td>`
+        : `<td><button type="button" class="ghost" data-open="${v.id}">${v.status === 'draft' ? tr('Continue') : tr('Open')}</button></td>`)
     ).join('')
-      : '<tr><td colspan="7" style="color:var(--muted);">No visits yet. Start with "+ New visit".</td></tr>';
+      : '<tr><td colspan="7" style="color:var(--muted);">' + esc(tr('No visits yet. Start with "+ New visit".')) + '</td></tr>';
     document.querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', async () => {
       try { openWizard(await api('/api/visits/' + b.dataset.open)); }
       catch (e) { showError('listError', e.message); }
@@ -893,7 +1440,7 @@ async function loadDashboard() {
   try {
     const d = await api('/api/dashboard');
     $('dashCard').classList.remove('hidden');
-    const card = (n, label) => `<div class="count"><b>${esc(n)}</b><span>${esc(label)}</span></div>`;
+    const card = (n, label) => `<div class="count"><b>${esc(n)}</b><span>${esc(tr(label))}</span></div>`;
     $('dashCounts').innerHTML =
       card(d.total_visits, 'Total visits') + card(d.hot_leads, 'Hot leads') + card(d.warm_leads, 'Warm leads') +
       card(d.pilots_agreed, 'Pilots agreed') + card(d.demo_first, 'Want demo first') +
@@ -905,7 +1452,7 @@ async function loadDashboard() {
 
 const ROLE_LABEL = { intern: 'Intern', trainee: 'Trainee', engineer: 'Engineer', sr_engineer: 'Sr Engineer',
   manager: 'Manager', branch_manager: 'Branch Manager', hr: 'HR', owner: 'Admin' };
-const roleLabel = r => ROLE_LABEL[r] || r;
+const roleLabel = r => tr(ROLE_LABEL[r] || r);
 
 /* ---------------- issues (admin only) ---------------- */
 const SEV_LABEL = { low: 'Low', medium: 'Medium', high: 'High', critical: 'Critical' };
@@ -921,13 +1468,13 @@ async function loadIssues() {
     $('issuesBody').innerHTML = d.issues.length
       ? d.issues.map(i =>
           `<tr><td>${esc(i.title)}</td>` +
-          `<td>${SEV_DOT[i.severity] || ''} ${esc(SEV_LABEL[i.severity] || i.severity)}</td>` +
+          `<td>${SEV_DOT[i.severity] || ''} ${esc(tr(SEV_LABEL[i.severity] || i.severity))}</td>` +
           `<td>${esc(i.submitted_by)}</td>` +
           `<td><span class="pill ${esc(i.status)}">${esc(i.status)}</span></td>` +
           `<td>${esc(String(i.created_at || '').slice(0, 10))}</td>` +
-          `<td><button type="button" class="ghost" data-issue="${i.id}">View</button></td></tr>`
+          `<td><button type="button" class="ghost" data-issue="${i.id}">${esc(tr('View'))}</button></td></tr>`
         ).join('')
-      : '<tr><td colspan="6" style="color:var(--muted);">No issues reported yet.</td></tr>';
+      : '<tr><td colspan="6" style="color:var(--muted);">' + esc(tr('No issues reported yet.')) + '</td></tr>';
     document.querySelectorAll('[data-issue]').forEach(btn =>
       btn.addEventListener('click', () => openIssueDetail(Number(btn.dataset.issue)))
     );
@@ -942,13 +1489,13 @@ async function openIssueDetail(id) {
     $('issueDetailTitle').textContent = currentIssue.title;
     const c = currentIssue;
     $('issueDetailContent').innerHTML =
-      `<dt>Severity</dt><dd>${SEV_DOT[c.severity] || ''} ${esc(SEV_LABEL[c.severity] || c.severity)}</dd>` +
-      `<dt>Status</dt><dd>${esc(c.status)}</dd>` +
-      `<dt>Reported by</dt><dd>${esc(c.submitted_by)}</dd>` +
-      `<dt>Area</dt><dd>${esc(c.area || '—')}</dd>` +
-      `<dt>Date</dt><dd>${esc(String(c.created_at || '').slice(0, 16).replace('T', ' '))}</dd>` +
-      `<dt>Description</dt><dd>${esc(c.description)}</dd>` +
-      (c.steps ? `<dt>Steps</dt><dd>${esc(c.steps)}</dd>` : '');
+      `<dt>${esc(tr('Severity'))}</dt><dd>${SEV_DOT[c.severity] || ''} ${esc(tr(SEV_LABEL[c.severity] || c.severity))}</dd>` +
+      `<dt>${esc(tr('Status'))}</dt><dd>${esc(c.status)}</dd>` +
+      `<dt>${esc(tr('Reported by'))}</dt><dd>${esc(c.submitted_by)}</dd>` +
+      `<dt>${esc(tr('Area'))}</dt><dd>${esc(c.area || '—')}</dd>` +
+      `<dt>${esc(tr('Date'))}</dt><dd>${esc(String(c.created_at || '').slice(0, 16).replace('T', ' '))}</dd>` +
+      `<dt>${esc(tr('Description'))}</dt><dd>${esc(c.description)}</dd>` +
+      (c.steps ? `<dt>${esc(tr('Steps'))}</dt><dd>${esc(c.steps)}</dd>` : '');
     if (c.analysis && c.analysis.summary) {
       $('analysisResult').textContent = c.analysis.summary;
       $('analysisResult').classList.remove('hidden');
@@ -966,7 +1513,7 @@ $('newVisitBtn').addEventListener('click', () => openWizard(null));
 $('backBtn').addEventListener('click', async () => { await saveDraft(); gotoStep(step - 1); });
 $('nextBtn').addEventListener('click', async () => {
   showError('wizError', '');
-  if (step === 0 && !currentType()) { showError('wizError', 'Pick the business type first.'); return; }
+  if (step === 0 && !currentType()) { showError('wizError', tr('Pick the business type first.')); return; }
   await saveDraft();
   gotoStep(step + 1);
 });
@@ -976,10 +1523,10 @@ $('submitBtn').addEventListener('click', async () => {
   try {
     await saveDraft();
     if (saving || dirty || !current || !current.id) {
-      throw new Error('Your answers are not sent yet — they are kept on this phone. Wait for "Draft saved", then tap Submit again.');
+      throw new Error(tr('Your answers are not sent yet — they are kept on this phone. Wait for "Draft saved", then tap Submit again.'));
     }
     current = await api('/api/visits/' + current.id + '/submit', { method: 'POST', body: '{}' });
-    $('wizOk').textContent = 'Visit submitted! Returning to survey home…';
+    $('wizOk').textContent = tr('Visit submitted! Returning to survey home…');
     $('wizOk').style.display = 'block';
     setTimeout(() => showList(), 2000);
   } catch (e) { showError('wizError', e.message); }
@@ -996,8 +1543,8 @@ $('wrapupBtn').addEventListener('click', async () => {
       pilot_date: c.pilot_date || null, next_step: c.next_step || null, next_step_date: c.next_step_date || null,
     });
     current = await api('/api/visits/' + current.id + '/wrapup', { method: 'POST', body: JSON.stringify(body) });
-    $('wizTitle').textContent = `Visit #${current.id} (completed)`;
-    $('partCOk').textContent = 'Part C saved.';
+    $('wizTitle').textContent = visitTitle(current);
+    $('partCOk').textContent = tr('Part C saved.');
     $('partCOk').style.display = 'block';
     renderPartC();
   } catch (e) { showError('partCError', e.message); }
@@ -1007,7 +1554,7 @@ $('saveChangesBtn').addEventListener('click', async () => {
   $('wizOk').style.display = 'none';
   try {
     await saveDraft();
-    $('wizOk').textContent = 'Changes saved.';
+    $('wizOk').textContent = tr('Changes saved.');
     $('wizOk').style.display = 'block';
   } catch (e) { showError('wizError', e.message); }
 });
@@ -1020,23 +1567,23 @@ $('analyzeBtn').addEventListener('click', async () => {
   showError('issueDetailError', '');
   $('issueDetailOk').style.display = 'none';
   $('analyzeBtn').disabled = true;
-  $('analyzeBtn').textContent = 'Analyzing…';
+  $('analyzeBtn').textContent = tr('Analyzing…');
   try {
     const d = await api('/api/issues/' + currentIssue.id + '/analyze', { method: 'POST', body: '{}' });
     $('analysisResult').textContent = d.analysis;
     $('analysisResult').classList.remove('hidden');
-    $('issueDetailOk').textContent = 'Analysis complete. Copy the "Claude Code prompt" at the end and paste it into your terminal to begin the fix.';
+    $('issueDetailOk').textContent = tr('Analysis complete. Copy the "Claude Code prompt" at the end and paste it into your terminal to begin the fix.');
     $('issueDetailOk').style.display = 'block';
     currentIssue.status = 'reviewed';
   } catch (e) { showError('issueDetailError', e.message); }
-  finally { $('analyzeBtn').disabled = false; $('analyzeBtn').textContent = 'Analyze with AI'; }
+  finally { $('analyzeBtn').disabled = false; $('analyzeBtn').textContent = tr('Analyze with AI'); }
 });
 $('resolveBtn').addEventListener('click', async () => {
   if (!currentIssue) return;
   showError('issueDetailError', '');
   try {
     await api('/api/issues/' + currentIssue.id + '/resolve', { method: 'POST', body: '{}' });
-    $('issueDetailOk').textContent = 'Issue marked as resolved.';
+    $('issueDetailOk').textContent = tr('Issue marked as resolved.');
     $('issueDetailOk').style.display = 'block';
     currentIssue.status = 'resolved';
     setTimeout(loadIssues, 1200);
@@ -1050,6 +1597,8 @@ $('logoutBtn').addEventListener('click', async () => {
 });
 // Send unsent answers as soon as the connection is back, and keep the
 // latest answers on the phone if the tab is closed mid-step.
+$('langEnBtn').addEventListener('click', () => setLang('en'));
+$('langTeBtn').addEventListener('click', () => setLang('te'));
 window.addEventListener('online', () => { if (dirty) saveDraft(); });
 window.addEventListener('pagehide', () => {
   if ($('wizardView').classList.contains('hidden') || !current || current.status !== 'draft') return;
@@ -1058,6 +1607,7 @@ window.addEventListener('pagehide', () => {
 });
 
 /* Deep link: /feedback/<id> opens that visit directly. */
+paintStatic();
 (async function init() {
   try {
     me = await api('/api/whoami');
