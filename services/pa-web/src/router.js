@@ -9,7 +9,9 @@
  *   1. registers the user once (name, address, pincode) — location is
  *      derived from the registration, never re-asked;
  *   2. understands the request (deterministic rule parser first, the
- *      ai-helper only as an escalation — it returns data, never writes);
+ *      ai-helper only as an escalation — it returns data, never writes;
+ *      phrases the parser misses go through the route dictionary
+ *      learning loop, src/dictionary.js + migration 025);
  *   3. finds registered apps for the category + pincode (apps.js);
  *   4. asks them for basic information (check_availability), compares
  *      quotes, shows the best, and only on the user's confirmation
@@ -29,6 +31,7 @@
  */
 
 const crypto = require('crypto');
+const dict = require('./dictionary');
 
 // ---------------------------------------------------------------------
 // Rule parser — deterministic, no LLM. Returns one of:
@@ -161,6 +164,14 @@ function createRouter(store) {
     await store.saveSession(key, s);
   }
 
+  // The dictionary learning loop runs only when the store provides it
+  // (the Postgres store does; minimal test stores may not) and the
+  // flag is on. PA_DICTIONARY_ENABLED=false restores pre-dictionary
+  // behavior exactly.
+  const dictOn = () =>
+    process.env.PA_DICTIONARY_ENABLED !== 'false' &&
+    typeof store.dictLookup === 'function';
+
   async function handleMessage({ channel, chatRef, text }) {
     const key = `${channel}:${chatRef}`;
     const replies = [];
@@ -227,10 +238,171 @@ function createRouter(store) {
       return { replies };
     }
 
+    // Status answer for the user's last order (used by the status
+    // intent and by dictionary routes that resolve to it).
+    async function statusReply() {
+      const order = await store.latestOrder(user.id).catch(() => null);
+      if (!order) return 'You have no orders with me yet.';
+      const app = await store.getApp(order.app_id).catch(() => null);
+      const live = app && order.app_order_id
+        ? await store.orderStatus(app, order.app_order_id).catch(() => null)
+        : null;
+      return (
+        `Your last order (${fmtItems(order.items || [])}) — ` +
+        `status: ${live || order.status}.` +
+        (order.app_order_id ? ` Order ID: ${order.app_order_id}.` : ''));
+    }
+
+    // Dispatch one resolved request to its apps (registry + pincode,
+    // then the app mode's flow). dictEntryId, when set, is the
+    // dictionary entry that produced this request: it travels into
+    // the pending confirmation so the user's YES/NO can promote or
+    // demote the entry (query mode counts its hit at info delivery —
+    // for a case question, the info IS the answer).
+    async function dispatchRequest(req, dictEntryId) {
+      const out = [];
+      const apps = await store.findApps(req.category, user.pincode);
+      if (!apps.length) {
+        await store.logRequest({
+          channel, chatRef, userId: user.id, text, reason: 'no_service_found',
+        }).catch(() => {});
+        out.push(
+          'No registered service for this is available in your area yet. ' +
+          'I have noted your request — PlotFarms will add services as they register.');
+        return out;
+      }
+
+      const app = apps[0];
+
+      // Query mode (lawyer): basic information first, request on confirm.
+      if (app.mode === 'query') {
+        const answer = await store.checkAvailability(app, user, req.items);
+        if (!answer) {
+          out.push(`I could not reach ${app.app_name} right now. Please try again shortly.`);
+          return out;
+        }
+        const info = answer.info || answer.note ||
+          (answer.items || []).map(i =>
+            `• ${i.name}: ${i.note || i.available || ''}`).join('\n');
+        if (dictEntryId && store.dictRecordHit) {
+          await store.dictRecordHit(dictEntryId).catch(() => {});
+        }
+        session.stage = 'awaiting_confirm';
+        session.context = {
+          pending: {
+            kind: 'service_request', app_id: app.app_id, app_name: app.app_name,
+            items: req.items, total: null, pa_request_id: newRequestId(),
+          },
+        };
+        await save(key, session);
+        out.push(
+          `${info}\n\nIf you want me to send this request to ${app.app_name}, reply YES. Otherwise reply NO.`);
+        return out;
+      }
+
+      // Booking mode (scheduler): availability = free slots.
+      if (app.mode === 'booking') {
+        const answer = await store.checkAvailability(app, user, req.items);
+        const slots = (answer && (answer.slots ||
+          (answer.items && answer.items[0] && answer.items[0].slots))) || [];
+        if (!answer || !slots.length) {
+          out.push(
+            answer && answer.note ? answer.note
+              : `No free slots are available with ${app.app_name} right now. Please try another day.`);
+          return out;
+        }
+        session.stage = 'awaiting_slot';
+        session.context = {
+          pending: {
+            kind: 'booking', app_id: app.app_id, app_name: app.app_name,
+            service: req.items[0].name, slots,
+            ...(dictEntryId ? { dict_entry_id: dictEntryId } : {}),
+          },
+        };
+        await save(key, session);
+        out.push(
+          `Free slots with ${app.app_name}:\n` +
+          slots.map((s, i) => `${i + 1}. ${s}`).join('\n') +
+          '\n\nReply with the number to book, or NO to cancel.');
+        return out;
+      }
+
+      // Mediated mode (ordering): quote from every app serving the
+      // area, show the best, order only on confirmation.
+      const quotes = [];
+      for (const a of apps) {
+        const answer = await store.checkAvailability(a, user, req.items);
+        if (answer) quotes.push({ app: a, answer });
+      }
+      if (!quotes.length) {
+        out.push('The stores could not be reached right now. Please try again shortly.');
+        return out;
+      }
+      const best = pickBestQuote(quotes);
+      if (!best) {
+        const names = [...new Set(quotes.flatMap(q =>
+          (q.answer.items || []).filter(i => i.available === 'no').map(i => i.name)))];
+        out.push(
+          `Not available right now: ${names.join(', ') || fmtItems(req.items)}. ` +
+          'Please try again later or ask for something else.');
+        return out;
+      }
+      session.stage = 'awaiting_confirm';
+      session.context = {
+        pending: {
+          kind: 'order', app_id: best.app.app_id, app_name: best.app.app_name,
+          items: best.answer.items.map(i => ({
+            name: i.name, qty: i.qty, unit: i.unit, rate: i.rate,
+          })),
+          total: best.answer.total, pa_request_id: newRequestId(),
+          ...(dictEntryId ? { dict_entry_id: dictEntryId } : {}),
+        },
+      };
+      await save(key, session);
+      const others = quotes.length > 1
+        ? `\n(Compared ${quotes.length} stores for your area.)` : '';
+      out.push(
+        `${fmtQuote(best.app.app_name, best.answer)}${others}\n\n` +
+        'Reply YES to place the order, or NO to cancel.');
+      return out;
+    }
+
+    // ---------- dictionary clarification (learning loop) ----------
+    if (session.stage === 'awaiting_dict_clarify') {
+      const pending = session.context.pending || {};
+      if (parsed.kind === 'cancel') {
+        session.stage = 'idle'; session.context = {};
+        await save(key, session);
+        if (pending.text && store.dictPropose) {
+          await store.dictPropose(pending.text).catch(() => {});
+        }
+        replies.push('No problem — I have noted it for review. Anything else?');
+        return { replies };
+      }
+      if (parsed.kind !== 'confirm' || !pending.request) {
+        replies.push('Please reply YES to continue, or NO to cancel.');
+        return { replies };
+      }
+      let entryId = null;
+      if (store.dictLearn && pending.text && pending.match) {
+        const e = await store.dictLearn(pending.text, pending.match).catch(() => null);
+        entryId = e && e.id;
+      }
+      session.stage = 'idle'; session.context = {};
+      await save(key, session);
+      replies.push(...await dispatchRequest(pending.request, entryId));
+      return { replies };
+    }
+
     // ---------- pending confirmation (UC-07/08) ----------
     if (session.stage === 'awaiting_confirm') {
       const pending = session.context.pending || {};
       if (parsed.kind === 'cancel') {
+        // A dictionary entry whose route ends in a cancel at the
+        // confirmation misfired — demote it for owner review.
+        if (pending.dict_entry_id && store.dictDemote) {
+          await store.dictDemote(pending.dict_entry_id).catch(() => {});
+        }
         session.stage = 'idle'; session.context = {};
         await save(key, session);
         replies.push('Cancelled. Nothing was ordered.');
@@ -263,6 +435,11 @@ function createRouter(store) {
         total: res.total != null ? res.total : pending.total,
         appOrderId: res.app_order_id, status: res.status || 'placed',
       });
+      // Clean hit: the user confirmed the dictionary-routed request
+      // and it was placed.
+      if (pending.dict_entry_id && store.dictRecordHit) {
+        await store.dictRecordHit(pending.dict_entry_id).catch(() => {});
+      }
       replies.push(
         pending.kind === 'booking'
           ? `✅ Booked with ${pending.app_name}. Booking ID: ${res.app_order_id} — status: ${res.status || 'confirmed'}.`
@@ -275,6 +452,9 @@ function createRouter(store) {
     if (session.stage === 'awaiting_slot') {
       const pending = session.context.pending || {};
       if (parsed.kind === 'cancel') {
+        if (pending.dict_entry_id && store.dictDemote) {
+          await store.dictDemote(pending.dict_entry_id).catch(() => {});
+        }
         session.stage = 'idle'; session.context = {};
         await save(key, session);
         replies.push('Cancelled. No appointment was booked.');
@@ -301,6 +481,9 @@ function createRouter(store) {
         total: res.total != null ? res.total : null,
         appOrderId: res.app_order_id, status: res.status || 'booked',
       });
+      if (pending.dict_entry_id && store.dictRecordHit) {
+        await store.dictRecordHit(pending.dict_entry_id).catch(() => {});
+      }
       replies.push(`✅ Appointment with ${pending.app_name} on ${slot}. Booking ID: ${res.app_order_id} — status: ${res.status || 'booked'}.`);
       return { replies };
     }
@@ -316,21 +499,61 @@ function createRouter(store) {
       return { replies };
     }
     if (parsed.kind === 'status') {
-      const order = await store.latestOrder(user.id).catch(() => null);
-      if (!order) { replies.push('You have no orders with me yet.'); return { replies }; }
-      const app = await store.getApp(order.app_id).catch(() => null);
-      const live = app && order.app_order_id
-        ? await store.orderStatus(app, order.app_order_id).catch(() => null)
-        : null;
-      replies.push(
-        `Your last order (${fmtItems(order.items || [])}) — ` +
-        `status: ${live || order.status}.` +
-        (order.app_order_id ? ` Order ID: ${order.app_order_id}.` : ''));
+      replies.push(await statusReply());
       return { replies };
     }
 
     // ---------- a real request (UC-04/05/06) ----------
     let req = parsed;
+    let dictEntryId = null;
+
+    // Dictionary learning loop (migration 025, src/dictionary.js):
+    // only phrases the rule parser could not place reach it. A
+    // dictionary hit becomes the request; on a miss the ai-helper
+    // match step may route + learn (>= 0.85), ask one clarifying
+    // question (0.60-0.85), or leave a proposal (< 0.60) — then the
+    // pre-existing fallbacks below continue unchanged.
+    if (req.kind === 'unknown' && dictOn()) {
+      const hit = await store.dictLookup(text).catch(() => null);
+      if (hit && hit.request) {
+        req = hit.request;
+        dictEntryId = hit.entry && hit.entry.id;
+        if (req.kind === 'status') {
+          replies.push(await statusReply());
+          if (dictEntryId && store.dictRecordHit) {
+            await store.dictRecordHit(dictEntryId).catch(() => {});
+          }
+          return { replies };
+        }
+      } else if (store.dictMatch) {
+        const match = await store.dictMatch(text).catch(() => null);
+        if (match && match.confidence >= dict.AUTO_ROUTE_CONFIDENCE) {
+          const e = store.dictLearn
+            ? await store.dictLearn(text, match).catch(() => null) : null;
+          req = match.request;
+          dictEntryId = e && e.id;
+        } else if (match && match.confidence >= dict.CLARIFY_CONFIDENCE) {
+          session.stage = 'awaiting_dict_clarify';
+          session.context = {
+            pending: {
+              text: String(text || ''),
+              match: {
+                route: match.route, category: match.category,
+                items: match.items, confidence: match.confidence,
+              },
+              request: match.request,
+            },
+          };
+          await save(key, session);
+          replies.push(
+            `Did you mean: ${dict.describeRoute(match)}? ` +
+            'Reply YES to continue, or NO to cancel.');
+          return { replies };
+        } else if (store.dictPropose) {
+          await store.dictPropose(text).catch(() => {});
+        }
+      }
+    }
     if (req.kind === 'unknown' && store.understand) {
       const ai = await store.understand(String(text || '')).catch(() => null);
       if (ai && ai.category && Array.isArray(ai.items) && ai.items.length) {
@@ -345,105 +568,9 @@ function createRouter(store) {
       return { replies };
     }
 
-    const apps = await store.findApps(req.category, user.pincode);
-    if (!apps.length) {
-      await store.logRequest({
-        channel, chatRef, userId: user.id, text, reason: 'no_service_found',
-      }).catch(() => {});
-      replies.push(
-        'No registered service for this is available in your area yet. ' +
-        'I have noted your request — PlotFarms will add services as they register.');
-      return { replies };
-    }
-
-    const app = apps[0];
-
-    // Query mode (lawyer): basic information first, request on confirm.
-    if (app.mode === 'query') {
-      const answer = await store.checkAvailability(app, user, req.items);
-      if (!answer) {
-        replies.push(`I could not reach ${app.app_name} right now. Please try again shortly.`);
-        return { replies };
-      }
-      const info = answer.info || answer.note ||
-        (answer.items || []).map(i =>
-          `• ${i.name}: ${i.note || i.available || ''}`).join('\n');
-      session.stage = 'awaiting_confirm';
-      session.context = {
-        pending: {
-          kind: 'service_request', app_id: app.app_id, app_name: app.app_name,
-          items: req.items, total: null, pa_request_id: newRequestId(),
-        },
-      };
-      await save(key, session);
-      replies.push(
-        `${info}\n\nIf you want me to send this request to ${app.app_name}, reply YES. Otherwise reply NO.`);
-      return { replies };
-    }
-
-    // Booking mode (scheduler): availability = free slots.
-    if (app.mode === 'booking') {
-      const answer = await store.checkAvailability(app, user, req.items);
-      const slots = (answer && (answer.slots ||
-        (answer.items && answer.items[0] && answer.items[0].slots))) || [];
-      if (!answer || !slots.length) {
-        replies.push(
-          answer && answer.note ? answer.note
-            : `No free slots are available with ${app.app_name} right now. Please try another day.`);
-        return { replies };
-      }
-      session.stage = 'awaiting_slot';
-      session.context = {
-        pending: {
-          kind: 'booking', app_id: app.app_id, app_name: app.app_name,
-          service: req.items[0].name, slots,
-        },
-      };
-      await save(key, session);
-      replies.push(
-        `Free slots with ${app.app_name}:\n` +
-        slots.map((s, i) => `${i + 1}. ${s}`).join('\n') +
-        '\n\nReply with the number to book, or NO to cancel.');
-      return { replies };
-    }
-
-    // Mediated mode (ordering): quote from every app serving the area,
-    // show the best, order only on confirmation.
-    const quotes = [];
-    for (const a of apps) {
-      const answer = await store.checkAvailability(a, user, req.items);
-      if (answer) quotes.push({ app: a, answer });
-    }
-    if (!quotes.length) {
-      replies.push('The stores could not be reached right now. Please try again shortly.');
-      return { replies };
-    }
-    const best = pickBestQuote(quotes);
-    if (!best) {
-      const names = [...new Set(quotes.flatMap(q =>
-        (q.answer.items || []).filter(i => i.available === 'no').map(i => i.name)))];
-      replies.push(
-        `Not available right now: ${names.join(', ') || fmtItems(req.items)}. ` +
-        'Please try again later or ask for something else.');
-      return { replies };
-    }
-    session.stage = 'awaiting_confirm';
-    session.context = {
-      pending: {
-        kind: 'order', app_id: best.app.app_id, app_name: best.app.app_name,
-        items: best.answer.items.map(i => ({
-          name: i.name, qty: i.qty, unit: i.unit, rate: i.rate,
-        })),
-        total: best.answer.total, pa_request_id: newRequestId(),
-      },
-    };
-    await save(key, session);
-    const others = quotes.length > 1
-      ? `\n(Compared ${quotes.length} stores for your area.)` : '';
-    replies.push(
-      `${fmtQuote(best.app.app_name, best.answer)}${others}\n\n` +
-      'Reply YES to place the order, or NO to cancel.');
+    replies.push(...await dispatchRequest(req, dictEntryId));
     return { replies };
+
   }
 
   // For channel layers that share one bot between two audiences
@@ -546,6 +673,9 @@ module.exports = function registerRouter(pool) {
           ORDER BY created_at DESC LIMIT 1`, [userId]);
       return r.rows[0] || null;
     },
+    // Dictionary learning loop (migration 025) — every method
+    // degrades to a miss/no-op until the migration is applied.
+    ...dict.makeDictionary(pool, { parseItems }),
     async logRequest(e) {
       await q(
         `INSERT INTO pa.request_log (channel, chat_ref, user_id, text, reason)
@@ -575,4 +705,5 @@ module.exports = function registerRouter(pool) {
 };
 module.exports.createRouter = createRouter;
 module.exports.parseRequest = parseRequest;
+module.exports.parseItems = parseItems;
 module.exports.pickBestQuote = pickBestQuote;
