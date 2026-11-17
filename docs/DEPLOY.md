@@ -173,7 +173,7 @@ with it — without the key the encrypted ID / bank numbers in a restored
 database cannot be read. Add the uploads folder to the same backup run:
 
 ```
-/opt/pa/services/pa-web/uploads/
+/opt/pa/services/pa-web/vegi_store/
 ```
 
 ## 10. Verify checklist

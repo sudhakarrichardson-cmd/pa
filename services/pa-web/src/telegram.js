@@ -22,7 +22,7 @@
 const crypto = require('crypto');
 
 const BOT_TOKEN      = process.env.TELEGRAM_BOT_TOKEN || '';
-const MINIMAX_KEY    = process.env.MINIMAX_API_KEY    || '';
+const AI_HELPER_URL  = process.env.AI_HELPER_URL      || 'http://ai-helper:8093';
 const APP_DOMAIN     = process.env.APP_DOMAIN         || 'pa.plotfarms.com';
 const TG_API         = `https://api.telegram.org/bot${BOT_TOKEN}`;
 const APP_CODE       = 'survey';
@@ -86,23 +86,15 @@ async function setupWebhook() {
 
 // ---- MiniMax AI -------------------------------------------------------
 async function askLLM(systemPrompt, userMessage) {
-  if (!MINIMAX_KEY) return null;
-  const r = await fetch('https://api.minimax.io/v1/chat/completions', {
+  const r = await fetch(`${AI_HELPER_URL}/chat`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${MINIMAX_KEY}` },
-    body: JSON.stringify({
-      model: 'MiniMax-Text-01',
-      max_tokens: 400,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user',   content: userMessage },
-      ],
-    }),
+    headers: { 'Content-Type': 'application/json', 'x-app-name': 'pa-web' },
+    body: JSON.stringify({ system: systemPrompt, message: userMessage }),
     signal: AbortSignal.timeout(20000),
   }).catch(() => null);
   if (!r || !r.ok) return null;
   const d = await r.json().catch(() => null);
-  return d?.choices?.[0]?.message?.content?.trim() || null;
+  return d?.reply?.trim() || null;
 }
 
 // ---- DB helpers -------------------------------------------------------
@@ -263,9 +255,13 @@ module.exports = function registerTelegram(pool, auth, paRouter) {
     ].filter(Boolean).join('\n\n');
 
     const system =
-      'You are the PA Bot for PlotFarms — a business-visit tracking app used by field employees. ' +
+      'You are the PA Bot for PlotFarms. PA is a business-visit tracking app AND an ordering platform. ' +
+      'Employees track business visits; anyone can place orders for vegetables and goods through PA. ' +
+      'If the user wants to place an order, tell them to simply describe what they need in a message, ' +
+      'for example: "2 kg tomatoes, 1 kg onions" — PA will pick it up and process the order. ' +
       'Answer the user\'s question using ONLY the data provided below. ' +
-      'Be concise (under 200 words). Use plain text, no markdown. ' +
+      'Be concise (under 200 words). Use plain text only — no asterisks, no markdown, no bullet symbols. ' +
+      'You may use HTML tags <b> and <i> for emphasis. ' +
       'If the data does not contain enough information, say so briefly.\n\n' +
       context;
 

@@ -7,7 +7,7 @@ services:
     ports:
       - "127.0.0.1:8095:8095"   # localhost only; Caddy proxies pa.plotfarms.com here
     volumes:
-      - ./uploads:/data/uploads   # A10 sample photos; never served as public files
+      - ./vegi_store:/data/uploads   # A10 sample photos; never served as public files
     networks:
       - supabase
 
