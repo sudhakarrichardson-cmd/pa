@@ -250,6 +250,37 @@ function looksLikeServicesQuestion(raw) {
   return /\b(registered|list|available|any|all|what|which|where)\b/.test(t);
 }
 
+// Deterministic net for questions ABOUT PA — the shapes users
+// actually type, typos included ("in shop are you odering it",
+// "what is teh shop name you will order this item"). This runs
+// BEFORE the dictionary and the ai-helper in every meta path, so
+// these questions are answered even when the helper is down, has
+// not learned the new signatures yet, or the dictionary is off.
+// The helper remains the long-tail mechanism (any other phrasing,
+// learned or proposed); this net only catches clear shapes and
+// returns null otherwise. Same veto as the split heuristic:
+// visit/survey/dashboard questions are never PA meta questions.
+function parseMetaQuestion(raw) {
+  const t = String(raw || '').toLowerCase()
+    .replace(/[^a-z\s]/g, ' ').replace(/\s+/g, ' ');
+  if (!/\b(shops?|stores?)\b/.test(t)) return null;
+  if (/\b(visits?|visited|survey|surveyed|dashboard)\b/.test(t)) return null;
+  // Listing question: an explicit list/registered/available word,
+  // or plural "shops" asked about with a discovery word.
+  if (/\b(list|registered|available|near|nearby)\b/.test(t) ||
+      (/\bshops\b/.test(t) &&
+       /\b(any|all|what|which|where|do you|can you)\b/.test(t))) {
+    const cat = detectCategory(t);
+    return { kind: 'services', category: SERVICE_CATEGORIES.includes(cat) ? cat : null };
+  }
+  // Which-shop question: singular shop/store in a question shape.
+  if (/\b(which|what|where|name|in|from)\b/.test(t) ||
+      /\b(are you|will you|you will|you are)\b/.test(t)) {
+    return { kind: 'which_shop' };
+  }
+  return null;
+}
+
 function findItemIndex(items, name) {
   const n = String(name || '').toLowerCase();
   let idx = (items || []).findIndex(i => i.name.toLowerCase() === n);
@@ -397,6 +428,8 @@ function createRouter(store) {
     // meta routes are accepted here, and a confident helper match is
     // learned exactly as at idle. Returns { req, entryId } or null.
     async function resolveMeta(rawText) {
+      const det = parseMetaQuestion(rawText);
+      if (det) return { req: det, entryId: null };
       if (!dictOn()) return null;
       const hit = await store.dictLookup(rawText).catch(() => null);
       if (hit && hit.request &&
@@ -1000,6 +1033,22 @@ ${fmtQuote(pending.app_name, answer)}
     // match step may route + learn (>= 0.85), ask one clarifying
     // question (0.60-0.85), or leave a proposal (< 0.60) — then the
     // pre-existing fallbacks below continue unchanged.
+    if (req.kind === 'unknown') {
+      const det = parseMetaQuestion(text);
+      if (det) {
+        req = det;
+        // The phrase is understood, so it also joins the dictionary
+        // (probationary, like a helper match) — the learning loop
+        // sees every understood phrasing, whichever net caught it.
+        if (dictOn() && store.dictLearn) {
+          const e = await store.dictLearn(text, {
+            route: det.kind === 'services' ? 'list_services' : 'which_shop',
+            category: det.category || null, items: [], confidence: 1,
+          }).catch(() => null);
+          dictEntryId = e && e.id;
+        }
+      }
+    }
     if (req.kind === 'unknown' && dictOn()) {
       const hit = await store.dictLookup(text).catch(() => null);
       if (hit && hit.request) {
@@ -1077,6 +1126,7 @@ ${fmtQuote(pending.app_name, answer)}
     // phrase the route dictionary has learned — a DB read, no AI
     // call on the split path.
     if (looksLikeServicesQuestion(text)) return true;
+    if (parseMetaQuestion(text)) return true;
     const parsed = parseRequest(text);
     if (parsed.kind === 'request' || parsed.kind === 'status') return true;
     if (typeof store.dictLookup === 'function') {
@@ -1208,6 +1258,7 @@ module.exports = function registerRouter(pool) {
 };
 module.exports.createRouter = createRouter;
 module.exports.looksLikeServicesQuestion = looksLikeServicesQuestion;
+module.exports.parseMetaQuestion = parseMetaQuestion;
 module.exports.parseRequest = parseRequest;
 module.exports.parseItems = parseItems;
 module.exports.pickBestQuote = pickBestQuote;
