@@ -36,11 +36,11 @@ const MATCH = {
     { intent: 'which_shop', entities: {}, confidence: 0.94 },
   'which shop will fulfil this':
     { intent: 'which_shop', entities: {}, confidence: 0.9 },
-  'shops nearby?':
+  'kirana outlets around here?':
     { intent: 'list_services', entities: {}, confidence: 0.7 },
 };
 
-function makeWorld() {
+function makeWorld({ plain = false } = {}) {
   const users = new Map(); const byRef = new Map();
   const sessions = new Map(); const orders = new Map(); const logs = [];
   let nextId = 1;
@@ -91,16 +91,20 @@ function makeWorld() {
       return mine[mine.length - 1] || null;
     },
     async logRequest(e) { logs.push(e); },
-    async dictLookup() { return null; },
-    async dictMatch(text) {
-      const raw = MATCH[text];
-      return raw ? dictMod.validateMatch(raw) : null;
-    },
-    async dictLearn(text) { calls.learn.push(text); return { id: 99 }; },
-    async dictRecordHit() {},
-    async dictDemote() {},
-    async dictPropose(text) { calls.propose.push(text); },
   };
+  if (!plain) {
+    Object.assign(store, {
+      async dictLookup() { return null; },
+      async dictMatch(text) {
+        const raw = MATCH[text];
+        return raw ? dictMod.validateMatch(raw) : null;
+      },
+      async dictLearn(text) { calls.learn.push(text); return { id: 99 }; },
+      async dictRecordHit() {},
+      async dictDemote() {},
+      async dictPropose(text) { calls.propose.push(text); },
+    });
+  }
   return { store, orders, calls };
 }
 
@@ -225,7 +229,7 @@ async function run() {
   await checkAsync('mid-confidence services match asks ONE clarifying question, YES lists', async () => {
     const w = makeWorld();
     const say = await register(createRouter(w.store), 's8');
-    const r = await say('shops nearby?');
+    const r = await say('kirana outlets around here?');
     assert.ok(J(r).includes('Did you mean: listing the shops'), J(r));
     const r2 = await say('yes');
     assert.ok(J(r2).includes('Kavya Vegetables'), J(r2));
@@ -234,9 +238,9 @@ async function run() {
   await checkAsync('unmatched question becomes a proposal for review, not a dropped message', async () => {
     const w = makeWorld();
     const say = await register(createRouter(w.store), 's9');
-    const r = await say('tell me the history of all shops in the world');
+    const r = await say('tell me the history of kirana outlets in the world');
     assert.ok(J(r).includes('did not understand'), J(r));
-    assert.ok(w.calls.propose.includes('tell me the history of all shops in the world'));
+    assert.ok(w.calls.propose.includes('tell me the history of kirana outlets in the world'));
   });
 
   await checkAsync('shouldHandle: services questions route to PA on a shared bot; employee questions do not', async () => {
@@ -256,6 +260,51 @@ async function run() {
     const router = createRouter(w.store);
     assert.equal(await router.shouldHandle({ channel: 'telegram', chatRef: 'x2', text: 'pachimirchi' }), true);
     assert.equal(await router.shouldHandle({ channel: 'telegram', chatRef: 'x2', text: 'random employee note' }), false);
+  });
+
+  check('parseMetaQuestion: the owner\'s exact typo shapes resolve without any helper', () => {
+    const pmq = routerMod.parseMetaQuestion;
+    assert.deepEqual(pmq('in shop are you odering it'), { kind: 'which_shop' });
+    assert.deepEqual(pmq('what is teh shop name you will order this item'), { kind: 'which_shop' });
+    assert.equal(pmq('do you any shops in the list').kind, 'services');
+    assert.equal(pmq('can you list all vegitable shops where i can shop').kind, 'services');
+    assert.equal(pmq('how many shops did we visit today'), null); // veto
+    assert.equal(pmq('2 kg mirchi'), null);
+    assert.equal(pmq('add brinjal 1kg'), null);
+  });
+
+  await checkAsync('PLAIN world (no dictionary, no helper): the live transcript replays correctly', async () => {
+    const w = makeWorld({ plain: true });
+    const say = await register(createRouter(w.store), 'p1');
+    let r = await say('i want 2kg mirchi');
+    assert.ok(J(r).includes('mirchi — 2 kg'), J(r));
+    r = await say('in shop are you odering it');
+    assert.ok(J(r).includes('not picked a shop yet'), J(r));
+    assert.ok(J(r).includes('mirchi — 2 kg'), J(r)); // cart preserved
+    r = await say('what is teh shop name you will order this item');
+    assert.ok(J(r).includes('not picked a shop yet'), J(r));
+    r = await say('done');
+    assert.ok(J(r).includes('Total: ₹120'), J(r));
+    r = await say('in shop are you odering it');
+    assert.ok(J(r).includes('This order will go to Kavya Vegetables'), J(r));
+    r = await say('yes');
+    assert.ok(J(r).includes('Order placed with Kavya Vegetables'), J(r));
+  });
+
+  await checkAsync('PLAIN world: which-shop question at idle answered deterministically', async () => {
+    const w = makeWorld({ plain: true });
+    const say = await register(createRouter(w.store), 'p2');
+    const r = await say('what is teh shop name you will order this item');
+    assert.ok(J(r).includes('no order in progress'), J(r));
+    const r2 = await say('do you any shops in the list');
+    assert.ok(J(r2).includes('Kavya Vegetables'), J(r2));
+  });
+
+  await checkAsync('PLAIN world: shouldHandle routes the typo shape to PA', async () => {
+    const w = makeWorld({ plain: true });
+    const router = createRouter(w.store);
+    assert.equal(await router.shouldHandle({ channel: 'telegram', chatRef: 'x3', text: 'in shop are you odering it' }), true);
+    assert.equal(await router.shouldHandle({ channel: 'telegram', chatRef: 'x3', text: 'how many shops did we visit' }), false);
   });
 
   console.log(failures ? `\n${failures} FAILURES` : '\nALL PASSED');
