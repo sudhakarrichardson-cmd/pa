@@ -12,10 +12,15 @@
  *      ai-helper only as an escalation — it returns data, never writes;
  *      phrases the parser misses go through the route dictionary
  *      learning loop, src/dictionary.js + migration 025);
- *   3. finds registered apps for the category + pincode (apps.js);
- *   4. asks them for basic information (check_availability), compares
- *      quotes, shows the best, and only on the user's confirmation
- *      places the order (place_order, idempotent pa_request_id);
+ *   3. for ordering categories (vegetables, cloth) collects the full
+ *      list first — a cart: the user adds items over as many messages
+ *      as they like and NO app is contacted until they say DONE;
+ *   4. finds registered apps for the category + pincode (apps.js),
+ *      asks them for basic information (check_availability) for the
+ *      whole list at once, compares quotes, shows the best — the user
+ *      can still add items to the shown quote (re-checked with the
+ *      winning app) — and only on the user's confirmation places the
+ *      order (place_order, idempotent pa_request_id);
  *   5. records the order in the PA order book (pa.orders) and answers
  *      status questions (order_status);
  *   6. logs what it could not serve (pa.request_log, UC-11).
@@ -141,6 +146,41 @@ function fmtQuote(appName, answer) {
     return `• ${i.name} (${i.qty} ${i.unit})${money} — ${avail}`;
   });
   return `${appName}:\n${lines.join('\n')}\nTotal: ₹${answer.total}`;
+}
+
+// Ordering categories go through the cart (collecting) stage;
+// query (legal) and booking (appointment) requests dispatch at once.
+const ORDER_CATEGORIES = ['vegetables', 'cloth'];
+
+// Words that mean "my list is complete — show prices" while
+// collecting. (YES / OK / proceed already parse as 'confirm', which
+// the collecting stage also treats as done.)
+const DONE_WORDS = new Set([
+  'done', "that's all", 'thats all', 'no more', 'no more items',
+  'checkout', 'show prices', 'get prices', 'chalu', 'inka chalu',
+]);
+
+// Merge extra items into a list: same name + unit adds quantities,
+// anything else appends. Quantities always come from the live
+// message, never from a stored template.
+function mergeItems(base, extra) {
+  const out = (base || []).map(i => ({ ...i }));
+  for (const e of extra || []) {
+    const hit = out.find(i => i.name === e.name && i.unit === e.unit);
+    if (hit) hit.qty = Number(hit.qty || 0) + Number(e.qty || 0);
+    else out.push({ name: e.name, qty: e.qty, unit: e.unit });
+  }
+  return out;
+}
+
+function fmtCart(cart) {
+  const lines = (cart.items || []).map(i => `• ${i.name} — ${i.qty} ${i.unit}`);
+  return (
+    `Your list so far:
+${lines.join('\n')}
+
+` +
+    'Add more items, or reply DONE to see prices. Reply NO to cancel.');
 }
 
 const MENU =
@@ -350,7 +390,8 @@ function createRouter(store) {
       session.stage = 'awaiting_confirm';
       session.context = {
         pending: {
-          kind: 'order', app_id: best.app.app_id, app_name: best.app.app_name,
+          kind: 'order', category: req.category,
+          app_id: best.app.app_id, app_name: best.app.app_name,
           items: best.answer.items.map(i => ({
             name: i.name, qty: i.qty, unit: i.unit, rate: i.rate,
           })),
@@ -363,8 +404,94 @@ function createRouter(store) {
         ? `\n(Compared ${quotes.length} stores for your area.)` : '';
       out.push(
         `${fmtQuote(best.app.app_name, best.answer)}${others}\n\n` +
-        'Reply YES to place the order, or NO to cancel.');
+        'Reply YES to place the order, or NO to cancel — ' +
+        'or send more items to add to this order.');
       return out;
+    }
+
+    // Inside an open cart / order quote the category is already
+    // known, so an item-shaped phrase ("1 kg dragon fruit") counts
+    // as an item of that category even when the item name is new to
+    // the word lists — the store's answer decides availability.
+    function contextualItems(rawText, category) {
+      if (!category) return null;
+      const items = parseItems(String(rawText || '').toLowerCase(), category);
+      return items.length ? { kind: 'request', category, items } : null;
+    }
+
+    // Route one resolved request: ordering categories first collect
+    // the full list (cart) — no app is contacted until the user says
+    // DONE; query and booking requests dispatch immediately.
+    async function routeRequest(req, entryId) {
+      if (ORDER_CATEGORIES.includes(req.category)) {
+        const cart = {
+          category: req.category,
+          items: mergeItems([], req.items),
+          ...(entryId ? { dict_entry_id: entryId } : {}),
+        };
+        session.stage = 'collecting';
+        session.context = { cart };
+        await save(key, session);
+        return [fmtCart(cart)];
+      }
+      return dispatchRequest(req, entryId);
+    }
+
+    // ---------- collecting the list (cart, ordering only) ----------
+    if (session.stage === 'collecting') {
+      const cart = session.context.cart || { category: null, items: [] };
+      if (parsed.kind === 'cancel') {
+        session.stage = 'idle'; session.context = {};
+        await save(key, session);
+        replies.push('Cancelled. Nothing was ordered.');
+        return { replies };
+      }
+      if (parsed.kind === 'status') {
+        replies.push(await statusReply());
+        return { replies };
+      }
+      const doneText = DONE_WORDS.has(
+        String(text || '').trim().toLowerCase().replace(/\s+/g, ' '));
+      if (parsed.kind === 'confirm' || doneText) {
+        if (!cart.items.length) {
+          replies.push('Your list is empty — tell me the first item you need.');
+          return { replies };
+        }
+        const req = { kind: 'request', category: cart.category, items: cart.items };
+        const entryId = cart.dict_entry_id || null;
+        session.stage = 'idle'; session.context = {};
+        await save(key, session);
+        replies.push(...await dispatchRequest(req, entryId));
+        return { replies };
+      }
+      let addReq = parsed.kind === 'request' ? parsed : null;
+      if (!addReq && dictOn()) {
+        const hit = await store.dictLookup(text).catch(() => null);
+        if (hit && hit.request && hit.request.kind === 'request') addReq = hit.request;
+      }
+      if (!addReq) addReq = contextualItems(text, cart.category);
+      if (addReq) {
+        if (cart.category && addReq.category !== cart.category) {
+          replies.push(
+            `That is a separate ${addReq.category} list — let us finish this ` +
+            `${cart.category} order first (DONE to see prices, or NO to cancel), ` +
+            'then I will take it.');
+          return { replies };
+        }
+        cart.category = cart.category || addReq.category;
+        cart.items = mergeItems(cart.items, addReq.items);
+        session.context = { cart };
+        await save(key, session);
+        replies.push(fmtCart(cart));
+        return { replies };
+      }
+      if (parsed.kind === 'greeting' || parsed.kind === 'help') {
+        replies.push(fmtCart(cart));
+        return { replies };
+      }
+      replies.push(`I could not pick an item out of that.
+${fmtCart(cart)}`);
+      return { replies };
     }
 
     // ---------- dictionary clarification (learning loop) ----------
@@ -390,7 +517,7 @@ function createRouter(store) {
       }
       session.stage = 'idle'; session.context = {};
       await save(key, session);
-      replies.push(...await dispatchRequest(pending.request, entryId));
+      replies.push(...await routeRequest(pending.request, entryId));
       return { replies };
     }
 
@@ -407,6 +534,74 @@ function createRouter(store) {
         await save(key, session);
         replies.push('Cancelled. Nothing was ordered.');
         return { replies };
+      }
+      // Add-more at the quote stage (order quotes only): merge the
+      // new items into the pending list and re-check the whole list
+      // with the SAME app that won the quote. An item the store does
+      // not have is named and left out; the rest of the quote stands.
+      if (parsed.kind !== 'confirm' && pending.kind === 'order') {
+        let addReq = parsed.kind === 'request' ? parsed : null;
+        if (!addReq && parsed.kind === 'unknown' && dictOn()) {
+          const hit = await store.dictLookup(text).catch(() => null);
+          if (hit && hit.request && hit.request.kind === 'request') addReq = hit.request;
+        }
+        if (!addReq && parsed.kind === 'unknown') {
+          addReq = contextualItems(text, pending.category);
+        }
+        if (addReq) {
+          if (pending.category && addReq.category !== pending.category) {
+            replies.push(
+              `That belongs to a separate ${addReq.category} order — let us ` +
+              'finish this one first: YES to place it, or NO to cancel.');
+            return { replies };
+          }
+          const app = await store.getApp(pending.app_id);
+          const merged = mergeItems(
+            (pending.items || []).map(i => ({ name: i.name, qty: i.qty, unit: i.unit })),
+            addReq.items);
+          const answer = app
+            ? await store.checkAvailability(app, user, merged).catch(() => null)
+            : null;
+          if (!answer) {
+            replies.push(
+              `I could not reach ${pending.app_name} just now — your quote is unchanged.
+
+` +
+              `${fmtQuote(pending.app_name, { items: pending.items, total: pending.total })}
+
+` +
+              'Reply YES to place the order, or NO to cancel — or send more items to add.');
+            return { replies };
+          }
+          const newNames = new Set(addReq.items.map(i => i.name));
+          const dropped = (answer.items || [])
+            .filter(i => i.available === 'no' && newNames.has(i.name))
+            .map(i => i.name);
+          const kept = (answer.items || [])
+            .filter(i => i.available === 'yes' || i.available === 'partial');
+          if (!kept.length) {
+            replies.push(
+              `${pending.app_name} cannot fulfil this order right now — ` +
+              'please try again later, or NO to cancel.');
+            return { replies };
+          }
+          pending.items = kept.map(i => ({
+            name: i.name, qty: i.qty, unit: i.unit, rate: i.rate,
+          }));
+          pending.total = answer.total;
+          session.context = { pending };
+          await save(key, session);
+          const note = dropped.length
+            ? `${dropped.join(', ')} is not available at ${pending.app_name}.
+
+` : '';
+          replies.push(
+            `${note}${fmtQuote(pending.app_name, answer)}
+
+` +
+            'Reply YES to place the order, or NO to cancel — or send more items to add.');
+          return { replies };
+        }
       }
       if (parsed.kind !== 'confirm') {
         replies.push('Please reply YES to confirm, or NO to cancel.');
@@ -568,7 +763,7 @@ function createRouter(store) {
       return { replies };
     }
 
-    replies.push(...await dispatchRequest(req, dictEntryId));
+    replies.push(...await routeRequest(req, dictEntryId));
     return { replies };
 
   }
@@ -586,7 +781,9 @@ function createRouter(store) {
       .catch(() => null);
     if (!session) return false;
     if (session.stage === 'awaiting_confirm' ||
-        session.stage === 'awaiting_slot') return true;
+        session.stage === 'awaiting_slot' ||
+        session.stage === 'collecting' ||
+        session.stage === 'awaiting_dict_clarify') return true;
     return session.stage === 'registering' &&
       !!(session.context && session.context.reg);
   }
