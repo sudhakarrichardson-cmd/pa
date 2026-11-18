@@ -69,11 +69,62 @@ function normUnit(u, category) {
   return s;
 }
 
+// Typo tolerance for item names: users type "mirhi", "tomto",
+// "onoin". A word that is a near miss of exactly ONE known item
+// (Damerau distance — a swapped letter pair counts once) snaps to
+// that item. Ambiguous near misses (close to two items) never snap.
+// Common English words that sit one edit from an item name are
+// stoplisted so ordinary sentences can never become items.
+const FUZZY_STOP = new Set(['short', 'part', 'ride', 'rich', 'core', 'coin', 'care', 'card',
+  'want', 'need', 'have', 'what', 'with', 'from', 'this', 'that', 'will', 'your',
+  'like', 'nice', 'means', 'best', 'week', 'shift', 'union', 'some', 'more']);
+function editDistance(a, b) {
+  const m = a.length, n = b.length;
+  const d = Array.from({ length: m + 1 }, (_, i) => [i, ...Array(n).fill(0)]);
+  for (let j = 1; j <= n; j++) d[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost);
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+        d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+      }
+    }
+  }
+  return d[m][n];
+}
+function fuzzyItem(word) {
+  const w = String(word || '').toLowerCase();
+  if (w.length < 4 || FUZZY_STOP.has(w)) return null;
+  if (VEG_ITEMS.includes(w) || CLOTH_ITEMS.includes(w)) return null; // exact is not fuzzy
+  const limit = w.length >= 7 ? 2 : 1;
+  let best = null, bestD = Infinity, tied = false;
+  for (const item of [...VEG_ITEMS, ...CLOTH_ITEMS]) {
+    if (item.includes(' ') || Math.abs(item.length - w.length) > limit) continue;
+    const dist = editDistance(w, item);
+    if (dist > limit) continue;
+    if (dist < bestD) { bestD = dist; best = item; tied = false; }
+    else if (dist === bestD) tied = true;
+  }
+  return best && !tied ? best : null;
+}
+
 function detectCategory(t) {
   for (const w of VEG_ITEMS) if (new RegExp(`\\b${w}\\b`).test(t)) return 'vegetables';
   for (const w of CLOTH_ITEMS) if (new RegExp(`\\b${w}\\b`).test(t)) return 'cloth';
   for (const [cat, words] of CATEGORY_WORDS) {
     for (const w of words) if (t.includes(w)) return cat;
+  }
+  // Fuzzy pass — only for order-shaped text (a quantity or a unit
+  // is present), so ordinary sentences can't trip it: "2 kg mirhi"
+  // is an order even though the item word is misspelled.
+  const orderShaped = /\d/.test(t) ||
+    UNIT_WORDS.some(u => new RegExp(`\\b${u}\\b`).test(t));
+  if (orderShaped) {
+    for (const w of t.split(/[^a-z]+/).filter(Boolean)) {
+      const f = fuzzyItem(w);
+      if (f) return VEG_ITEMS.includes(f) ? 'vegetables' : 'cloth';
+    }
   }
   return null;
 }
@@ -86,8 +137,9 @@ function parseItems(t, category) {
   const re = /(\d+(?:\.\d+)?)\s*(kg|g|gram|grams|litre|liter|l|ml|pieces|piece|pcs|pc|boxes|box|dozen)?\s+(?:of\s+)?([a-z][a-z\s]*?)(?=\s*(?:,| and |&|$))/gi;
   let m;
   while ((m = re.exec(t)) !== null) {
-    const name = m[3].trim().replace(/\s+/g, ' ');
+    let name = m[3].trim().replace(/\s+/g, ' ');
     if (!name || ['want', 'need', 'order', 'buy'].includes(name)) continue;
+    if (!name.includes(' ')) name = fuzzyItem(name) || name;
     // "tomotos 2 kg": the quantity-first pattern can latch onto the
     // unit itself as the name — a unit is never an item name.
     if (UNIT_WORDS.includes(name)) continue;
@@ -98,9 +150,10 @@ function parseItems(t, category) {
     const re2 = /([a-z][a-z\s]*?)\s+(\d+(?:\.\d+)?)\s*(kg|g|gram|grams|litre|liter|l|ml|pieces|piece|pcs|pc|boxes|box|dozen)?\b/gi;
     let m2;
     while ((m2 = re2.exec(t)) !== null) {
-      const name = m2[1].trim().replace(/\s+/g, ' ')
+      let name = m2[1].trim().replace(/\s+/g, ' ')
         .replace(/^(add|buy|want|need|get|order|please)\s+/, '');
       if (!name || UNIT_WORDS.includes(name)) continue;
+      if (!name.includes(' ')) name = fuzzyItem(name) || name;
       if (['want', 'need', 'order', 'buy'].includes(name)) continue;
       items.push({ name, qty: parseFloat(m2[2]), unit: normUnit(m2[3], category) });
     }
@@ -108,7 +161,16 @@ function parseItems(t, category) {
   if (!items.length) {
     const known = [...VEG_ITEMS, ...CLOTH_ITEMS]
       .find(w => new RegExp(`\\b${w}\\b`).test(t));
-    if (known) items.push({ name: known, qty: 1, unit: normUnit(null, category) });
+    if (known) {
+      items.push({ name: known, qty: 1, unit: normUnit(null, category) });
+    } else {
+      // No exact item word — a single near-miss word still counts
+      // ("mirhi" with no quantity in a known-category context).
+      for (const w of t.split(/[^a-z]+/).filter(Boolean)) {
+        const f = fuzzyItem(w);
+        if (f) { items.push({ name: f, qty: 1, unit: normUnit(null, category) }); break; }
+      }
+    }
   }
   return items;
 }
@@ -1259,6 +1321,7 @@ module.exports = function registerRouter(pool) {
 module.exports.createRouter = createRouter;
 module.exports.looksLikeServicesQuestion = looksLikeServicesQuestion;
 module.exports.parseMetaQuestion = parseMetaQuestion;
+module.exports.fuzzyItem = fuzzyItem;
 module.exports.parseRequest = parseRequest;
 module.exports.parseItems = parseItems;
 module.exports.pickBestQuote = pickBestQuote;
