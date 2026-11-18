@@ -295,6 +295,21 @@ async function run() {
     assert.equal(parseRequest('2 kg potato').items[0].name, 'potato'); // exact wins, never tomato
   });
 
+  await checkAsync('two items in one message, no comma: "add 1 kg ginger 2 kg garlic" keeps BOTH', async () => {
+    const { parseItems } = require('../services/pa-web/src/router');
+    assert.deepEqual(parseItems('add 1 kg ginger 2 kg garlic', 'vegetables'), [
+      { name: 'ginger', qty: 1, unit: 'kg' },
+      { name: 'garlic', qty: 2, unit: 'kg' },
+    ]);
+    const w = makeWorld();
+    const say = await register(createRouter(w.store), 'g1');
+    await say('2kg tomato');
+    const r = await say('add 1 kg ginger 2 kg garlic');
+    assert.ok(J(r).includes('ginger — 1 kg'), J(r));
+    assert.ok(J(r).includes('garlic — 2 kg'), J(r));
+    assert.ok(J(r).includes('tomato — 2 kg'), J(r));
+  });
+
   console.log(failures === 0 ? 'ALL PA CART TESTS PASSED' : `${failures} PA CART TEST(S) FAILED`);
   process.exit(failures === 0 ? 0 : 1);
 }
