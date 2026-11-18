@@ -78,6 +78,9 @@ function detectCategory(t) {
   return null;
 }
 
+const UNIT_WORDS = ['kg', 'g', 'gram', 'grams', 'litre', 'liter', 'l', 'ml',
+  'piece', 'pieces', 'pcs', 'pc', 'box', 'boxes', 'dozen'];
+
 function parseItems(t, category) {
   const items = [];
   const re = /(\d+(?:\.\d+)?)\s*(kg|g|gram|grams|litre|liter|l|ml|pieces|piece|pcs|pc|boxes|box|dozen)?\s+(?:of\s+)?([a-z][a-z\s]*?)(?=\s*(?:,| and |&|$))/gi;
@@ -85,7 +88,22 @@ function parseItems(t, category) {
   while ((m = re.exec(t)) !== null) {
     const name = m[3].trim().replace(/\s+/g, ' ');
     if (!name || ['want', 'need', 'order', 'buy'].includes(name)) continue;
+    // "tomotos 2 kg": the quantity-first pattern can latch onto the
+    // unit itself as the name — a unit is never an item name.
+    if (UNIT_WORDS.includes(name)) continue;
     items.push({ name, qty: parseFloat(m[1]), unit: normUnit(m[2], category) });
+  }
+  if (!items.length) {
+    // Name-first phrasing: "tomato 2kg", "tomotos 2 kg", "add brinjal 1kg".
+    const re2 = /([a-z][a-z\s]*?)\s+(\d+(?:\.\d+)?)\s*(kg|g|gram|grams|litre|liter|l|ml|pieces|piece|pcs|pc|boxes|box|dozen)?\b/gi;
+    let m2;
+    while ((m2 = re2.exec(t)) !== null) {
+      const name = m2[1].trim().replace(/\s+/g, ' ')
+        .replace(/^(add|buy|want|need|get|order|please)\s+/, '');
+      if (!name || UNIT_WORDS.includes(name)) continue;
+      if (['want', 'need', 'order', 'buy'].includes(name)) continue;
+      items.push({ name, qty: parseFloat(m2[2]), unit: normUnit(m2[3], category) });
+    }
   }
   if (!items.length) {
     const known = [...VEG_ITEMS, ...CLOTH_ITEMS]
@@ -181,6 +199,46 @@ ${lines.join('\n')}
 
 ` +
     'Add more items, or reply DONE to see prices. Reply NO to cancel.');
+}
+
+// "remove tomato", "delete the brinjal", "i don't want kg - 2kg from
+// the list" — the user may paste the bot's own list line back, so an
+// item whose name appears as a word in the target wins first; else
+// quantities / units / filler are stripped and what remains is the
+// name. Returns { name } or null.
+const REMOVE_FILLER = new Set(['from', 'the', 'list', 'item', 'please',
+  'in', 'my', 'cart', 'order', 'this', 'that']);
+function parseRemoval(raw, items) {
+  const t = String(raw || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  let target = null;
+  let m = t.match(/^(?:please\s+)?(?:remove|delete|drop)\s+(.+)$/);
+  if (m) target = m[1];
+  if (!target) {
+    m = t.match(/(?:don'?t|do not)\s+want\s+(.+)$/);
+    if (m) target = m[1];
+  }
+  if (!target) {
+    m = t.match(/^no\s+(.+)$/);
+    if (m && !['more', 'more items', 'cancel'].includes(m[1])) target = m[1];
+  }
+  if (!target) return null;
+  for (const it of items || []) {
+    if (new RegExp(`\\b${it.name}\\b`).test(target)) return { name: it.name };
+  }
+  const words = target.replace(/[—–\-,]/g, ' ').split(/\s+/).filter(w =>
+    w && !/^\d/.test(w) && !UNIT_WORDS.includes(w) && !REMOVE_FILLER.has(w));
+  const name = words.join(' ').trim();
+  return name ? { name } : null;
+}
+
+function findItemIndex(items, name) {
+  const n = String(name || '').toLowerCase();
+  let idx = (items || []).findIndex(i => i.name.toLowerCase() === n);
+  if (idx < 0) {
+    idx = (items || []).findIndex(i =>
+      i.name.toLowerCase().includes(n) || n.includes(i.name.toLowerCase()));
+  }
+  return idx;
 }
 
 const MENU =
@@ -410,13 +468,60 @@ function createRouter(store) {
     }
 
     // Inside an open cart / order quote the category is already
-    // known, so an item-shaped phrase ("1 kg dragon fruit") counts
-    // as an item of that category even when the item name is new to
-    // the word lists — the store's answer decides availability.
+    // known, so a SHORT item-shaped phrase ("1 kg dragon fruit")
+    // counts as an item of that category even when the name is new
+    // to the word lists — the store's answer decides availability.
+    // Sentence-like text is refused here: it goes to the ai-helper
+    // (resolveAdd) or is treated as not understood, never guessed
+    // into an item ("...from teh list" is not a vegetable).
+    const SENTENCE_WORDS = new Set(['from', 'list', 'want', 'modify',
+      'change', 'please', 'the', "don't", 'dont', 'remove', 'delete',
+      'drop', 'not', 'this', 'that', 'my']);
     function contextualItems(rawText, category) {
       if (!category) return null;
-      const items = parseItems(String(rawText || '').toLowerCase(), category);
+      const t = String(rawText || '').trim().toLowerCase();
+      const words = t.split(/\s+/);
+      if (words.length > 4) return null;
+      if (words.some(w => SENTENCE_WORDS.has(w.replace(/[^a-z']/g, '')))) return null;
+      const items = parseItems(t, category);
       return items.length ? { kind: 'request', category, items } : null;
+    }
+
+    // Resolve a would-be item addition inside an open cart / quote,
+    // in order: (1) the route dictionary, (2) the ai-helper — when
+    // PA does not understand, the helper decides whether the phrase
+    // is a valid item request at all (only a confident order route
+    // for THIS category is accepted, and a learned entry is saved
+    // the same way as at idle), (3) the gated contextual parse.
+    async function resolveAdd(rawText, category) {
+      if (dictOn()) {
+        const hit = await store.dictLookup(rawText).catch(() => null);
+        if (hit && hit.request && hit.request.kind === 'request') return hit.request;
+        if (store.dictMatch) {
+          const match = await store.dictMatch(rawText).catch(() => null);
+          if (match && match.route === 'order' &&
+              match.confidence >= dict.AUTO_ROUTE_CONFIDENCE &&
+              (!category || match.category === category)) {
+            if (store.dictLearn) {
+              await store.dictLearn(rawText, match).catch(() => null);
+            }
+            return match.request;
+          }
+        }
+      }
+      return contextualItems(rawText, category);
+    }
+
+    // Fold a fresh check_availability answer into a pending quote.
+    function applyAnswerToPending(pending, answer) {
+      const kept = (answer.items || [])
+        .filter(i => i.available === 'yes' || i.available === 'partial');
+      if (!kept.length) return false;
+      pending.items = kept.map(i => ({
+        name: i.name, qty: i.qty, unit: i.unit, rate: i.rate,
+      }));
+      pending.total = answer.total;
+      return true;
     }
 
     // Route one resolved request: ordering categories first collect
@@ -464,12 +569,29 @@ function createRouter(store) {
         replies.push(...await dispatchRequest(req, entryId));
         return { replies };
       }
-      let addReq = parsed.kind === 'request' ? parsed : null;
-      if (!addReq && dictOn()) {
-        const hit = await store.dictLookup(text).catch(() => null);
-        if (hit && hit.request && hit.request.kind === 'request') addReq = hit.request;
+      const rem = parseRemoval(text, cart.items);
+      if (rem) {
+        const idx = findItemIndex(cart.items, rem.name);
+        if (idx < 0) {
+          replies.push(`There is no ${rem.name} in your list.
+${fmtCart(cart)}`);
+          return { replies };
+        }
+        const [gone] = cart.items.splice(idx, 1);
+        if (!cart.items.length) {
+          session.stage = 'idle'; session.context = {};
+          await save(key, session);
+          replies.push(`Removed ${gone.name} — your list is now empty, so the order is cancelled.`);
+          return { replies };
+        }
+        session.context = { cart };
+        await save(key, session);
+        replies.push(`Removed ${gone.name} — ${gone.qty} ${gone.unit}.
+${fmtCart(cart)}`);
+        return { replies };
       }
-      if (!addReq) addReq = contextualItems(text, cart.category);
+      let addReq = parsed.kind === 'request' ? parsed : null;
+      if (!addReq) addReq = await resolveAdd(text, cart.category);
       if (addReq) {
         if (cart.category && addReq.category !== cart.category) {
           replies.push(
@@ -488,6 +610,9 @@ function createRouter(store) {
       if (parsed.kind === 'greeting' || parsed.kind === 'help') {
         replies.push(fmtCart(cart));
         return { replies };
+      }
+      if (store.dictPropose) {
+        await store.dictPropose(text).catch(() => {});
       }
       replies.push(`I could not pick an item out of that.
 ${fmtCart(cart)}`);
@@ -535,18 +660,60 @@ ${fmtCart(cart)}`);
         replies.push('Cancelled. Nothing was ordered.');
         return { replies };
       }
+      // Remove an item from the shown quote: drop it and re-check
+      // the rest with the same app, so rates and the total stay live.
+      const remQ = parsed.kind !== 'confirm' && pending.kind === 'order'
+        ? parseRemoval(text, pending.items) : null;
+      if (remQ) {
+        const idx = findItemIndex(pending.items, remQ.name);
+        if (idx < 0) {
+          replies.push(
+            `There is no ${remQ.name} in this order. Reply YES to place it, ` +
+            'NO to cancel, or name an item to add or remove.');
+          return { replies };
+        }
+        const rest = (pending.items || [])
+          .filter((_, i) => i !== idx)
+          .map(i => ({ name: i.name, qty: i.qty, unit: i.unit }));
+        if (!rest.length) {
+          session.stage = 'idle'; session.context = {};
+          await save(key, session);
+          replies.push('Removed the last item — the order is cancelled. Nothing was ordered.');
+          return { replies };
+        }
+        const app = await store.getApp(pending.app_id);
+        const answer = app
+          ? await store.checkAvailability(app, user, rest).catch(() => null)
+          : null;
+        if (!answer || !applyAnswerToPending(pending, answer)) {
+          replies.push(
+            `I could not reach ${pending.app_name} just now — your quote is unchanged.
+
+` +
+            `${fmtQuote(pending.app_name, { items: pending.items, total: pending.total })}
+
+` +
+            'Reply YES to place the order, or NO to cancel — or send more items to add.');
+          return { replies };
+        }
+        session.context = { pending };
+        await save(key, session);
+        replies.push(
+          `Removed ${remQ.name}.
+${fmtQuote(pending.app_name, answer)}
+
+` +
+          'Reply YES to place the order, or NO to cancel — or send more items to add.');
+        return { replies };
+      }
       // Add-more at the quote stage (order quotes only): merge the
       // new items into the pending list and re-check the whole list
       // with the SAME app that won the quote. An item the store does
       // not have is named and left out; the rest of the quote stands.
       if (parsed.kind !== 'confirm' && pending.kind === 'order') {
         let addReq = parsed.kind === 'request' ? parsed : null;
-        if (!addReq && parsed.kind === 'unknown' && dictOn()) {
-          const hit = await store.dictLookup(text).catch(() => null);
-          if (hit && hit.request && hit.request.kind === 'request') addReq = hit.request;
-        }
         if (!addReq && parsed.kind === 'unknown') {
-          addReq = contextualItems(text, pending.category);
+          addReq = await resolveAdd(text, pending.category);
         }
         if (addReq) {
           if (pending.category && addReq.category !== pending.category) {
@@ -577,18 +744,12 @@ ${fmtCart(cart)}`);
           const dropped = (answer.items || [])
             .filter(i => i.available === 'no' && newNames.has(i.name))
             .map(i => i.name);
-          const kept = (answer.items || [])
-            .filter(i => i.available === 'yes' || i.available === 'partial');
-          if (!kept.length) {
+          if (!applyAnswerToPending(pending, answer)) {
             replies.push(
               `${pending.app_name} cannot fulfil this order right now — ` +
               'please try again later, or NO to cancel.');
             return { replies };
           }
-          pending.items = kept.map(i => ({
-            name: i.name, qty: i.qty, unit: i.unit, rate: i.rate,
-          }));
-          pending.total = answer.total;
           session.context = { pending };
           await save(key, session);
           const note = dropped.length
