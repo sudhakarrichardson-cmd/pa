@@ -30,13 +30,27 @@ unchanged — there is nothing to collect there.
 
 ## Details
 
-- Item resolution inside an open cart/quote: rule parser →
-  dictionary lookup → **contextual parse**: the category is already
-  known, so an item-shaped phrase ("1 kg dragon fruit") counts as an
+- Item resolution inside an open cart/quote, in order: rule parser →
+  route dictionary → **ai-helper validation** (when PA does not
+  understand a phrase, the helper decides whether it is a valid item
+  request at all; only a confident order route for the cart's own
+  category is accepted, and the phrase is learned like an idle-stage
+  match) → **gated contextual parse**: the category is already known,
+  so a SHORT item-shaped phrase ("1 kg dragon fruit") counts as an
   item of that category even when the name is new to the word lists;
-  the store's answer decides availability. At idle (no context) an
-  unknown item name still goes through the dictionary / not-understood
-  path as before.
+  sentence-like text (contains words like "from", "list", "want",
+  "modify") is refused and treated as not understood — it is never
+  guessed into an item. Not-understood cart text is also saved as a
+  dictionary proposal for owner review.
+- The parser reads quantities in both orders — "2 kg tomato" and
+  "tomato 2kg" / "tomotos 2 kg" — and a unit word ("kg") can never
+  become an item name.
+- **Removal works at both stages**: "remove tomato", "delete the
+  brinjal", "i don't want tomato", or pasting the bot's own list
+  line back ("remove tomato — 2 kg"). In the cart the item simply
+  leaves the list; at the quote the rest is re-checked with the same
+  store so the total stays live. Removing the last item cancels the
+  order; removing an item that is not there is answered by name.
 - A status question mid-cart is answered and the cart is kept.
 - `shouldHandle` treats `collecting` (and `awaiting_dict_clarify`)
   as in-flow stages, so replies from a linked employee chat stay with
