@@ -123,9 +123,14 @@ async function run() {
   out = await say('524201');
   check('pincode -> registered', () => assert.match(last(out), /Registered/));
 
-  // ---- J2 vegetables: compare, confirm, order ----
+  // ---- J2 vegetables: collect, compare, confirm, order ----
   out = await say('2 kg mirchi');
-  check('quote shows the best store total (₹110) and compares 2 stores', () => {
+  check('first item opens the cart — no store is contacted yet', () => {
+    assert.match(last(out), /Your list so far/);
+    assert.match(last(out), /mirchi — 2 kg/);
+  });
+  out = await say('done');
+  check('DONE shows the best store total (₹110) and compares 2 stores', () => {
     assert.match(last(out), /Total: ₹110/);
     assert.match(last(out), /Compared 2 stores/);
   });
@@ -162,6 +167,9 @@ async function run() {
 
   // ---- UC-11: no service registered ----
   out = await say('I want a nighty');
+  check('unserved category still collects first', () =>
+    assert.match(last(out), /Your list so far/));
+  out = await say('done');
   check('unserved category -> noted + logged, no crash', () => {
     assert.match(last(out), /No registered service/);
     assert.equal(logs.filter(l => l.reason === 'no_service_found').length, 1);
@@ -178,11 +186,11 @@ async function run() {
   console.log('PASS  shouldHandle: PA request -> router');
   assert.equal(await sh('how many visits did I make this week'), false);
   console.log('PASS  shouldHandle: employee visit question -> stays with employee bot');
-  out = await say('2 kg mirchi'); // opens a pending quote
+  out = await say('2 kg mirchi'); // opens a cart (collecting stage)
   assert.equal(await sh('yes'), true);
   console.log('PASS  shouldHandle: reply inside a pending PA flow -> router');
   out = await say('no');
-  check('pending quote cancelled cleanly', () =>
+  check('cart cancelled cleanly', () =>
     assert.match(last(out), /Cancelled/));
 
   console.log(failures ? 'PA MESSAGING TESTS FAILED' : 'ALL PA MESSAGING TESTS PASSED');

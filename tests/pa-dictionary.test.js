@@ -175,8 +175,10 @@ async function run() {
     const router = createRouter(w.store);
     const say = await register(router, '111');
     const r = await say('ullipaya');
-    assert.ok(r.replies.join(' ').includes('Veg Store A'), r.replies.join(' '));
     assert.ok(r.replies.join(' ').includes('onion'), r.replies.join(' '));
+    assert.ok(r.replies.join(' ').includes('Your list so far'), r.replies.join(' '));
+    const q = await say('done');
+    assert.ok(q.replies.join(' ').includes('Veg Store A'), q.replies.join(' '));
     assert.equal(w.calls.lookup, 1);
     assert.equal(w.calls.learn.length, 0);
   });
@@ -197,6 +199,8 @@ async function run() {
     assert.deepEqual(w.calls.learn, ['kothimeera kavali']);
     const entry = w.entries.get('kothimeera kavali');
     assert.equal(entry.status, 'probationary');
+    const q = await say('done');
+    assert.ok(q.replies.join(' ').includes('Reply YES to place the order'), q.replies.join(' '));
     const yes = await say('yes');
     assert.ok(yes.replies.join(' ').includes('Order placed'), yes.replies.join(' '));
     assert.deepEqual(w.calls.hits, [entry.id]);
@@ -217,6 +221,7 @@ async function run() {
     const say = await register(router, '333');
     await say('kothimeera kavali');
     const entry = w.entries.get('kothimeera kavali');
+    await say('done');
     const no = await say('no');
     assert.ok(no.replies.join(' ').includes('Cancelled'), no.replies.join(' '));
     assert.deepEqual(w.calls.demotes, [entry.id]);
@@ -298,7 +303,9 @@ async function run() {
     const r = await say('kothimeera kavali');
     assert.ok(r.replies.join(' ').includes('I did not understand'), r.replies.join(' '));
     const r2 = await say('2 kg mirchi');
-    assert.ok(r2.replies.join(' ').includes('Veg Store A'), r2.replies.join(' '));
+    assert.ok(r2.replies.join(' ').includes('Your list so far'), r2.replies.join(' '));
+    const r3 = await say('done');
+    assert.ok(r3.replies.join(' ').includes('Veg Store A'), r3.replies.join(' '));
   });
 
   console.log(failures === 0 ? 'ALL PA DICTIONARY TESTS PASSED' : `${failures} PA DICTIONARY TEST(S) FAILED`);
