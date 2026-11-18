@@ -63,6 +63,14 @@ const ROUTES = [
     intent: 'order_status',
     params: 'entities: {} — the user asks about the status of their last order or booking',
   },
+  {
+    intent: 'list_services',
+    params: 'entities: { category?: "vegetables" | "cloth" | "legal" | "appointment" } — the user asks WHICH shops or services are registered / available with PA (list the shops, what shops are there, where can I shop, do you have any shops). Questions about PA itself, not an order. Omit category when they ask about all shops/services.',
+  },
+  {
+    intent: 'which_shop',
+    params: 'entities: {} — the user asks WHICH shop or store will fulfil (or is fulfilling) their order — "in which shop are you planning to order it", "which store will deliver this". A question about the current order, not a new order.',
+  },
 ];
 const ROUTE_NAMES = ROUTES.map(r => r.intent);
 
@@ -116,6 +124,16 @@ function validateMatch(d) {
   if (route === 'order_status') {
     return { route, category: null, items: [], confidence, request: { kind: 'status' } };
   }
+  if (route === 'list_services') {
+    // Category is optional (all services) but must be a real one.
+    if (e.category !== undefined &&
+        !['vegetables', 'cloth', 'legal', 'appointment'].includes(e.category)) return null;
+    const category = e.category || null;
+    return { route, category, items: [], confidence, request: { kind: 'services', category } };
+  }
+  if (route === 'which_shop') {
+    return { route, category: null, items: [], confidence, request: { kind: 'which_shop' } };
+  }
   if (route === 'service_query') {
     if (e.category !== undefined && e.category !== 'legal') return null;
     const items = [{ name: 'consultation', qty: 1, unit: 'service' }];
@@ -147,6 +165,10 @@ function templateOf(items) {
 function buildRequest(entry, text, parseItems) {
   if (!entry) return null;
   if (entry.route === 'order_status') return { kind: 'status' };
+  if (entry.route === 'list_services') {
+    return { kind: 'services', category: entry.category || null };
+  }
+  if (entry.route === 'which_shop') return { kind: 'which_shop' };
   if (entry.route === 'service_query') {
     return { kind: 'request', category: 'legal', items: [{ name: 'consultation', qty: 1, unit: 'service' }] };
   }
@@ -184,6 +206,12 @@ function describeRoute(m) {
   if (m.route === 'service_query') return 'asking the lawyer about your case / a consultation';
   if (m.route === 'book') return `booking an appointment (${(m.items[0] || {}).name || 'appointment'})`;
   if (m.route === 'order_status') return 'checking your last order status';
+  if (m.route === 'list_services') {
+    return m.category
+      ? `listing the ${m.category} shops registered in your area`
+      : 'listing the shops and services registered in your area';
+  }
+  if (m.route === 'which_shop') return 'telling you which shop this order goes to';
   return 'that';
 }
 
