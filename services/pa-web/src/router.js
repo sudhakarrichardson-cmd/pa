@@ -231,6 +231,25 @@ function parseRemoval(raw, items) {
   return name ? { name } : null;
 }
 
+const CATEGORY_LABELS = {
+  vegetables: 'Vegetables', cloth: 'Cloth',
+  legal: 'Legal help', appointment: 'Appointments',
+};
+const SERVICE_CATEGORIES = ['vegetables', 'cloth', 'legal', 'appointment'];
+
+// Split heuristic for shared bots (telegram.js shouldHandle): does
+// this text look like a PA service-discovery question ("which shops
+// are registered", "any shops in the list") rather than the other
+// audience's business ("shops we visited", "survey list")? Kept
+// deliberately narrow — visit/survey/dashboard words veto it, and
+// inside PA the ai-helper + dictionary do the real understanding.
+function looksLikeServicesQuestion(raw) {
+  const t = String(raw || '').toLowerCase();
+  if (!/\b(shops?|stores?|services)\b/.test(t)) return false;
+  if (/\b(visits?|visited|survey|surveyed|dashboard)\b/.test(t)) return false;
+  return /\b(registered|list|available|any|all|what|which|where)\b/.test(t);
+}
+
 function findItemIndex(items, name) {
   const n = String(name || '').toLowerCase();
   let idx = (items || []).findIndex(i => i.name.toLowerCase() === n);
@@ -351,6 +370,54 @@ function createRouter(store) {
         (order.app_order_id ? ` Order ID: ${order.app_order_id}.` : ''));
     }
 
+    // Answer a service-discovery question from the REGISTRY — the
+    // apps actually registered (active) for the user's pincode.
+    // Never from survey/visit data and never from the ai-helper:
+    // the helper only decides that this is the question being asked.
+    async function servicesReply(category) {
+      const cats = category ? [category] : SERVICE_CATEGORIES;
+      const groups = [];
+      for (const c of cats) {
+        const apps = await store.findApps(c, user.pincode).catch(() => []);
+        if (apps && apps.length) groups.push({ c, apps });
+      }
+      if (!groups.length) {
+        return category
+          ? `No ${category} shops or services are registered with PA in your area (${user.pincode}) yet. I have noted it — PlotFarms will add services as they register.`
+          : `No shops or services are registered with PA in your area (${user.pincode}) yet. I have noted it — PlotFarms will add services as they register.`;
+      }
+      const lines = groups.map(g =>
+        `• ${CATEGORY_LABELS[g.c] || g.c}: ${g.apps.map(a => a.app_name).join(', ')}`);
+      return `Registered with PA in your area (${user.pincode}):\n${lines.join('\n')}`;
+    }
+
+    // Resolve a question ABOUT PA (which shops are registered /
+    // which shop fulfils this order) inside an open cart or quote:
+    // dictionary lookup first, then the ai-helper — only the two
+    // meta routes are accepted here, and a confident helper match is
+    // learned exactly as at idle. Returns { req, entryId } or null.
+    async function resolveMeta(rawText) {
+      if (!dictOn()) return null;
+      const hit = await store.dictLookup(rawText).catch(() => null);
+      if (hit && hit.request &&
+          (hit.request.kind === 'services' || hit.request.kind === 'which_shop')) {
+        return { req: hit.request, entryId: hit.entry && hit.entry.id };
+      }
+      if (store.dictMatch) {
+        const match = await store.dictMatch(rawText).catch(() => null);
+        if (match && (match.route === 'list_services' || match.route === 'which_shop') &&
+            match.confidence >= dict.AUTO_ROUTE_CONFIDENCE) {
+          let entryId = null;
+          if (store.dictLearn) {
+            const e = await store.dictLearn(rawText, match).catch(() => null);
+            entryId = e && e.id;
+          }
+          return { req: match.request, entryId };
+        }
+      }
+      return null;
+    }
+
     // Dispatch one resolved request to its apps (registry + pincode,
     // then the app mode's flow). dictEntryId, when set, is the
     // dictionary entry that produced this request: it travels into
@@ -359,6 +426,37 @@ function createRouter(store) {
     // for a case question, the info IS the answer).
     async function dispatchRequest(req, dictEntryId) {
       const out = [];
+      // Questions about PA itself (idle stage): answered from the
+      // registry / the session — no app is contacted. (Inside an
+      // open cart or quote the stage handlers answer these via
+      // resolveMeta, with the cart/quote context attached.)
+      if (req.kind === 'services') {
+        out.push(await servicesReply(req.category || null));
+        if (dictEntryId && store.dictRecordHit) {
+          await store.dictRecordHit(dictEntryId).catch(() => {});
+        }
+        // Compound message ("I want to order vegetables — do you
+        // have any shops available?"): the question is answered AND
+        // the order starts collecting in the same reply.
+        if (req.category && ORDER_CATEGORIES.includes(req.category) &&
+            /\b(order|want|need|buy)\b/i.test(String(text || ''))) {
+          session.stage = 'collecting';
+          session.context = { cart: { category: req.category, items: [] } };
+          await save(key, session);
+          out.push(`Send me the ${req.category} items and I will get the prices.`);
+        }
+        return out;
+      }
+      if (req.kind === 'which_shop') {
+        if (dictEntryId && store.dictRecordHit) {
+          await store.dictRecordHit(dictEntryId).catch(() => {});
+        }
+        out.push(
+          'You have no order in progress right now, so no shop is picked yet. ' +
+          'When you order, I compare the registered shops in your area and ' +
+          'the quote names the shop before you confirm.');
+        return out;
+      }
       const apps = await store.findApps(req.category, user.pincode);
       if (!apps.length) {
         await store.logRequest({
@@ -528,6 +626,7 @@ function createRouter(store) {
     // the full list (cart) — no app is contacted until the user says
     // DONE; query and booking requests dispatch immediately.
     async function routeRequest(req, entryId) {
+      if (req.kind !== 'request') return dispatchRequest(req, entryId);
       if (ORDER_CATEGORIES.includes(req.category)) {
         const cart = {
           category: req.category,
@@ -567,6 +666,20 @@ function createRouter(store) {
         session.stage = 'idle'; session.context = {};
         await save(key, session);
         replies.push(...await dispatchRequest(req, entryId));
+        return { replies };
+      }
+      // A question about PA itself (registered shops / which shop
+      // will fulfil this) is answered, not mistaken for an item —
+      // the cart is preserved and re-shown.
+      const metaC = await resolveMeta(text);
+      if (metaC) {
+        if (metaC.entryId && store.dictRecordHit) {
+          await store.dictRecordHit(metaC.entryId).catch(() => {});
+        }
+        replies.push(metaC.req.kind === 'services'
+          ? await servicesReply(metaC.req.category)
+          : 'I have not picked a shop yet — when you say DONE I compare the shops serving your area and show you the best one with the prices.');
+        replies.push(fmtCart(cart));
         return { replies };
       }
       const rem = parseRemoval(text, cart.items);
@@ -659,6 +772,24 @@ ${fmtCart(cart)}`);
         await save(key, session);
         replies.push('Cancelled. Nothing was ordered.');
         return { replies };
+      }
+      // A question about PA itself at the quote stage ("in which
+      // shop are you planning to order it") is answered from the
+      // pending quote — it must not fall into the YES/NO gate.
+      if (parsed.kind !== 'confirm' && pending.kind === 'order') {
+        const metaQ = await resolveMeta(text);
+        if (metaQ) {
+          if (metaQ.entryId && store.dictRecordHit) {
+            await store.dictRecordHit(metaQ.entryId).catch(() => {});
+          }
+          const quoteText =
+            `${fmtQuote(pending.app_name, { items: pending.items, total: pending.total })}\n\n` +
+            'Reply YES to place the order, or NO to cancel — or send more items to add.';
+          replies.push(metaQ.req.kind === 'which_shop'
+            ? `This order will go to ${pending.app_name}.\n\n${quoteText}`
+            : `${await servicesReply(metaQ.req.category)}\n\nYour current quote:\n${quoteText}`);
+          return { replies };
+        }
       }
       // Remove an item from the shown quote: drop it and re-check
       // the rest with the same app, so rates and the total stay live.
@@ -916,6 +1047,10 @@ ${fmtQuote(pending.app_name, answer)}
         req = { kind: 'request', category: ai.category, items: ai.items };
       }
     }
+    if (req.kind === 'services' || req.kind === 'which_shop') {
+      replies.push(...await dispatchRequest(req, dictEntryId));
+      return { replies };
+    }
     if (req.kind !== 'request') {
       await store.logRequest({
         channel, chatRef, userId: user.id, text, reason: 'not_understood',
@@ -936,8 +1071,18 @@ ${fmtQuote(pending.app_name, answer)}
   // chat already started (registration, quote confirmation, slot
   // pick). Everything else stays with the other audience's handler.
   async function shouldHandle({ channel, chatRef, text }) {
+    // Service-discovery questions belong to PA even on a shared bot:
+    // a narrow keyword bridge for the split (the other audience's
+    // visit/survey questions are vetoed inside the check), plus any
+    // phrase the route dictionary has learned — a DB read, no AI
+    // call on the split path.
+    if (looksLikeServicesQuestion(text)) return true;
     const parsed = parseRequest(text);
     if (parsed.kind === 'request' || parsed.kind === 'status') return true;
+    if (typeof store.dictLookup === 'function') {
+      const hit = await store.dictLookup(text).catch(() => null);
+      if (hit) return true;
+    }
     const session = await store.getSession(`${channel}:${chatRef}`)
       .catch(() => null);
     if (!session) return false;
@@ -1062,6 +1207,7 @@ module.exports = function registerRouter(pool) {
   return createRouter(store);
 };
 module.exports.createRouter = createRouter;
+module.exports.looksLikeServicesQuestion = looksLikeServicesQuestion;
 module.exports.parseRequest = parseRequest;
 module.exports.parseItems = parseItems;
 module.exports.pickBestQuote = pickBestQuote;
