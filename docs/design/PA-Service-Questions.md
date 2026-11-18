@@ -31,6 +31,32 @@ the ai-helper; facts never do**:
   registered pincode) or from the live session (the pending quote's
   shop). Survey/visit data is never a source for PA answers.
 
+## Addendum (same night): the deterministic net
+
+The owner's first live test of this build — *"in shop are you
+odering it"*, *"what is teh shop name you will order this item"*,
+asked mid-cart — still failed: the live ai-helper returned no
+`which_shop` match (its answering of the new signatures is not yet
+verified live), and no seed pattern matched a full sentence. The
+helper stays the long-tail mechanism, but questions this common
+cannot depend on it. So `parseMetaQuestion` (router.js) now runs
+FIRST in every meta path — idle, collecting, quote, and the
+shared-bot split:
+
+- A shop/store mention, minus the visit/survey veto, in a clear
+  shape resolves deterministically: list words (list / registered /
+  available / near) or plural "shops" + a discovery word →
+  `list_services`; singular shop + a question shape → `which_shop`.
+  Typos don't matter — the net keys off structure, not spelling of
+  the verb ("odering" is never matched; it doesn't need to be).
+- It works with the dictionary disabled and the helper down.
+- At idle, a net hit is still learned into the dictionary
+  (probationary, confidence 1) so the learning loop sees every
+  understood phrasing, whichever net caught it.
+
+Regression tests replay the owner's exact transcript in a PLAIN
+world — no dictionary store, no helper — at cart, quote and idle.
+
 ## The two new routes (dictionary.js allowlist)
 
 | Route | Entities | PA's answer |
