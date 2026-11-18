@@ -94,6 +94,11 @@ async function run() {
     assert.equal(p.category, 'vegetables');
     assert.deepEqual(p.items, [{ name: 'mirchi', qty: 2, unit: 'kg' }]);
   });
+  check('parser: "tomato 2kg" (name-first) keeps qty 2', () => {
+    const p = parseRequest('tomato 2kg');
+    assert.equal(p.kind, 'request');
+    assert.deepEqual(p.items, [{ name: 'tomato', qty: 2, unit: 'kg' }]);
+  });
   check('parser: "doctor appointment" -> appointment service', () => {
     const p = parseRequest('doctor appointment');
     assert.equal(p.category, 'appointment');

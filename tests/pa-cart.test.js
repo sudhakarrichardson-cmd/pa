@@ -20,7 +20,7 @@ async function checkAsync(name, fn) {
   catch (e) { failures++; console.log('FAIL  ' + name + ' — ' + e.message); }
 }
 
-function makeWorld() {
+function makeWorld({ withDict = false, matchScript = {} } = {}) {
   const users = new Map(); const byRef = new Map();
   const sessions = new Map(); const orders = new Map(); const logs = [];
   let nextId = 1;
@@ -68,6 +68,21 @@ function makeWorld() {
     },
     async logRequest(e) { logs.push(e); },
   };
+  if (withDict) {
+    const dictMod = require('../services/pa-web/src/dictionary');
+    calls.learn = []; calls.propose = [];
+    Object.assign(store, {
+      async dictLookup() { return null; },
+      async dictMatch(text) {
+        const raw = matchScript[text];
+        return raw ? dictMod.validateMatch(raw) : null;
+      },
+      async dictLearn(text) { calls.learn.push(text); return { id: 99 }; },
+      async dictRecordHit() {},
+      async dictDemote() {},
+      async dictPropose(text) { calls.propose.push(text); },
+    });
+  }
   return { store, orders, calls };
 }
 
@@ -171,6 +186,85 @@ async function run() {
     await say('1 kg tomato');
     const r = await say('status');
     assert.ok(J(r).includes('no orders'), J(r));
+    const q = await say('done');
+    assert.ok(J(q).includes('Total: ₹40'), J(q));
+  });
+
+  await checkAsync('name-first quantities keep their quantity ("tomato 2kg")', async () => {
+    const w = makeWorld();
+    const say = await register(createRouter(w.store), '888');
+    const r = await say('tomato 2kg');
+    assert.ok(J(r).includes('tomato — 2 kg'), J(r));
+    const q = await say('done');
+    assert.ok(J(q).includes('Total: ₹80'), J(q));
+  });
+
+  await checkAsync('transcript replay: typo validated by ai-helper, no "kg" item, no garbage item', async () => {
+    const w = makeWorld({
+      withDict: true,
+      matchScript: {
+        'tomotos 2 kg': {
+          intent: 'order', confidence: 0.9,
+          entities: { category: 'vegetables', items: [{ name: 'tomato', qty: 2, unit: 'kg' }] },
+        },
+      },
+    });
+    const say = await register(createRouter(w.store), '999');
+    await say('2 kg mirchi');
+    const r = await say('tomotos 2 kg');
+    assert.ok(J(r).includes('tomato — 2 kg'), J(r));
+    assert.ok(!J(r).includes('• kg —'), J(r));
+    assert.deepEqual(w.calls.learn, ['tomotos 2 kg']); // helper-validated phrase learned
+    const g = await say("modify the list , i don't want kg -2kg from teh list");
+    assert.ok(!J(g).includes('from teh list —'), J(g)); // sentence never becomes an item
+    const q = await say('done');
+    assert.ok(J(q).includes('Total: ₹200'), J(q)); // mirchi 2*60 + tomato 2*40, unchanged
+  });
+
+  await checkAsync('remove in cart: by name, and by pasting the bot\'s own list line back', async () => {
+    const w = makeWorld();
+    const say = await register(createRouter(w.store), '101');
+    await say('2 kg mirchi');
+    await say('2 kg tomato');
+    let r = await say('remove tomato — 2 kg');
+    assert.ok(J(r).includes('Removed tomato'), J(r));
+    assert.ok(!J(r).includes('• tomato'), J(r));
+    r = await say('remove mirchi');
+    assert.ok(J(r).includes('list is now empty'), J(r));
+    assert.equal(w.calls.check, 0);
+  });
+
+  await checkAsync('remove of an item that is not there: named, cart unchanged', async () => {
+    const w = makeWorld();
+    const say = await register(createRouter(w.store), '102');
+    await say('1 kg tomato');
+    const r = await say('remove brinjal');
+    assert.ok(J(r).includes('no brinjal in your list'), J(r));
+    const q = await say('done');
+    assert.ok(J(q).includes('Total: ₹40'), J(q));
+  });
+
+  await checkAsync('remove at the quote stage re-quotes the rest; removing the last item cancels', async () => {
+    const w = makeWorld();
+    const say = await register(createRouter(w.store), '103');
+    await say('1 kg tomato');
+    await say('1 kg brinjal');
+    await say('done');
+    const r = await say('remove brinjal');
+    assert.ok(J(r).includes('Removed brinjal'), J(r));
+    assert.ok(J(r).includes('Total: ₹40'), J(r));
+    const r2 = await say('remove tomato');
+    assert.ok(J(r2).includes('order is cancelled'), J(r2));
+    assert.equal(w.calls.place.length, 0);
+  });
+
+  await checkAsync('sentence-like text in cart: not understood, proposed for review, cart unchanged', async () => {
+    const w = makeWorld({ withDict: true });
+    const say = await register(createRouter(w.store), '104');
+    await say('1 kg tomato');
+    const r = await say('please change my plan for tomorrow');
+    assert.ok(J(r).includes('could not pick an item'), J(r));
+    assert.deepEqual(w.calls.propose, ['please change my plan for tomorrow']);
     const q = await say('done');
     assert.ok(J(q).includes('Total: ₹40'), J(q));
   });
