@@ -134,7 +134,11 @@ const UNIT_WORDS = ['kg', 'g', 'gram', 'grams', 'litre', 'liter', 'l', 'ml',
 
 function parseItems(t, category) {
   const items = [];
-  const re = /(\d+(?:\.\d+)?)\s*(kg|g|gram|grams|litre|liter|l|ml|pieces|piece|pcs|pc|boxes|box|dozen)?\s+(?:of\s+)?([a-z][a-z\s]*?)(?=\s*(?:,| and |&|$))/gi;
+  // The name ends at a comma / "and" / "&", at the NEXT item's
+  // quantity, or at the end — "1 kg ginger 2 kg garlic" is two
+  // items even without a comma; without the digit boundary the
+  // first item's name can never close and it is silently dropped.
+  const re = /(\d+(?:\.\d+)?)\s*(kg|g|gram|grams|litre|liter|l|ml|pieces|piece|pcs|pc|boxes|box|dozen)?\s+(?:of\s+)?([a-z][a-z\s]*?)(?=\s*(?:,| and |&|\d|$))/gi;
   let m;
   while ((m = re.exec(t)) !== null) {
     let name = m[3].trim().replace(/\s+/g, ' ');
