@@ -269,6 +269,32 @@ async function run() {
     assert.ok(J(q).includes('Total: ₹40'), J(q));
   });
 
+  await checkAsync('typo transcript: "2 kg mirhi" opens the cart as mirchi — nothing is lost to the other bot', async () => {
+    const w = makeWorld();
+    const router = createRouter(w.store);
+    const say = await register(router, 't1');
+    // The split itself must claim the typo'd order for PA.
+    assert.equal(await router.shouldHandle({ channel: 'telegram', chatRef: 't1', text: '2 kg mirhi' }), true);
+    let r = await say('2 kg mirhi');
+    assert.ok(J(r).includes('mirchi — 2 kg'), J(r));
+    r = await say('2kg tomato');
+    assert.ok(J(r).includes('mirchi — 2 kg'), J(r));
+    assert.ok(J(r).includes('tomato — 2 kg'), J(r));
+    r = await say('1 kg onion');
+    assert.ok(J(r).includes('onion — 1 kg'), J(r));
+    r = await say('done');
+    assert.ok(J(r).includes('Total: ₹230'), J(r)); // 120 + 80 + 30
+  });
+
+  await checkAsync('fuzzy guards: ordinary words never become items; transpositions snap', async () => {
+    const { parseRequest, fuzzyItem } = require('../services/pa-web/src/router');
+    assert.equal(parseRequest('book a ride').kind, 'unknown');
+    assert.equal(fuzzyItem('short'), null); // not "shirt"
+    assert.equal(fuzzyItem('mirhi'), 'mirchi');
+    assert.equal(parseRequest('2 kg onoin').items[0].name, 'onion');
+    assert.equal(parseRequest('2 kg potato').items[0].name, 'potato'); // exact wins, never tomato
+  });
+
   console.log(failures === 0 ? 'ALL PA CART TESTS PASSED' : `${failures} PA CART TEST(S) FAILED`);
   process.exit(failures === 0 ? 0 : 1);
 }
