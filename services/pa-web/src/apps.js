@@ -150,29 +150,21 @@ function createApps(deps) {
 
   async function setStatus(appId, status) {
     const r = await query(
-      `UPDATE pa.app_registry SET status = $2, updated_at = now()
-        WHERE app_id = $1 RETURNING app_id, status`, [appId, status]);
-    return r.rows[0] || null;
-  }
-
-  // Activation check: one read-only availability call. Only a correct
-  // basic-interface answer flips the registration to 'active'.
-  async function testApp(app) {
-    const probe = { name: 'test', qty: 1, unit: 'piece' };
-    const out = await checkAvailability(app,
-      { name: 'PA test', phone: null, address: 'test', pincode: '000000' },
-      [probe]);
-    return out;
+      `UPDATE pa.app_registry SET status = $1 WHERE app_id = $2 RETURNING app_id`,
+      [status, appId]);
+    return r.rows[0];
   }
 
   return {
-    listApps, getApp, findApps, callApp,
-    checkAvailability, placeOrder, orderStatus,
-    registerApp, setStatus, testApp,
+    listApps,
+    getApp,
+    findApps,
+    checkAvailability,
+    placeOrder,
+    orderStatus,
+    registerApp,
+    setStatus,
   };
 }
 
-module.exports = function registerApps(pool) {
-  return createApps({ query: (sql, params) => pool.query(sql, params) });
-};
-module.exports.createApps = createApps;
+module.exports = createApps;
