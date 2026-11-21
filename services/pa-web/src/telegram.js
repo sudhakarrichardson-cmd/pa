@@ -285,6 +285,24 @@ module.exports = function registerTelegram(pool, auth, paRouter) {
       riState.delete(chatId);
       if (!title) { await editWithButtons(chatId, msgId, '❌ Session expired. Please send /report_issue again.', null); return; }
       try {
+        // Deduplication: check for open issue with same title (first 80 chars) in last 7 days
+        const dup = await q(
+          `SELECT id FROM survey.issues
+            WHERE LEFT(title, 80) = LEFT($1, 80)
+              AND status IN ('open','approved','in_progress')
+              AND created_at > now() - interval '7 days'
+            ORDER BY id DESC LIMIT 1`,
+          [title]
+        );
+        if (dup.rows.length) {
+          const dupRef = `SV-${dup.rows[0].id}`;
+          await editWithButtons(chatId, msgId,
+            `⚠️ Similar issue already open: ${dupRef}\n\n"${title}"\n\nIt's being tracked. No duplicate created.`,
+            null
+          );
+          return;
+        }
+
         const r = await q(
           `INSERT INTO survey.issues (title, description, severity, area, status, submitted_by)
            VALUES ($1, $2, $3, $4, 'open', $5) RETURNING id`,
