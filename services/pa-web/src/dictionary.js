@@ -146,15 +146,12 @@ function validateMatch(d) {
     return { route, category: 'appointment', items, confidence, request: { kind: 'request', category: 'appointment', items } };
   }
   // route === 'order'
-  if (!['vegetables', 'cloth'].includes(e.category)) return null;
+  if (!['vegetables', 'cloth', 'legal'].includes(e.category)) return null;
   if (!Array.isArray(e.items) || !e.items.length) return null;
   const items = e.items.map(i => cleanItem(i, e.category)).filter(Boolean);
   if (!items.length) return null;
   return { route, category: e.category, items, confidence, request: { kind: 'request', category: e.category, items } };
 }
-
-// Item template stored on an entry: names + units, NO quantities —
-// quantities are re-read from the live message when the entry fires.
 function templateOf(items) {
   return (items || []).map(i => ({ name: i.name, unit: i.unit }));
 }
