@@ -46,7 +46,7 @@ const CLARIFY_CONFIDENCE = 0.60;
 
 // The route allowlist — the ONLY things a dictionary entry or an
 // ai-helper match may produce. Signatures are what the helper sees.
-const ROUTES = [
+const ROUTES = [ // patched
   {
     intent: 'order',
     params: 'entities: { category: "vegetables" | "cloth", items: [{ name, qty, unit }] } — the user wants to order products from a store',
@@ -73,6 +73,56 @@ const ROUTES = [
   },
 ];
 const ROUTE_NAMES = ROUTES.map(r => r.intent);
+const appRegistry = require('./appRegistry'); // Add this line to import the appRegistry module
+
+function validateMatch(d) {
+  if (!d || typeof d !== 'object') return null;
+  const route = String(d.intent || '');
+  if (!ROUTE_NAMES.includes(route)) return null;
+  const confidence = Number(d.confidence);
+  if (!Number.isFinite(confidence) || confidence < 0 || confidence > 1) return null;
+  const e = (d.entities && typeof d.entities === 'object') ? d.entities : {};
+
+  if (route === 'order_status') {
+    return { route, category: null, items: [], confidence, request: { kind: 'status' } };
+  }
+  if (route === 'list_services') {
+    // Category is optional (all services) but must be a real one.
+    if (e.category !== undefined &&
+        !['vegetables', 'cloth', 'legal', 'appointment'].includes(e.category)) return null;
+    const category = e.category || null;
+    return { route, category, items: [], confidence, request: { kind: 'services', category } };
+  }
+  if (route === 'which_shop') {
+    return { route, category: null, items: [], confidence, request: { kind: 'which_shop' } };
+  }
+  if (route === 'service_query') {
+    if (e.category !== undefined && e.category !== 'legal') return null;
+    const items = [{ name: 'consultation', qty: 1, unit: 'service' }];
+    return { route, category: 'legal', items, confidence, request: { kind: 'request', category: 'legal', items } };
+  }
+  if (route === 'book') {
+    if (e.category !== undefined && e.category !== 'appointment') return null;
+    const svc = String(e.service || 'appointment').trim().toLowerCase().slice(0, 60) || 'appointment';
+    const items = [{ name: svc, qty: 1, unit: 'service' }];
+    return { route, category: 'appointment', items, confidence, request: { kind: 'request', category: 'appointment', items } };
+  }
+  // route === 'order'
+  if (!['vegetables', 'cloth'].includes(e.category)) return null;
+  if (!Array.isArray(e.items) || !e.items.length) return null;
+  const items = e.items.map(i => cleanItem(i, e.category)).filter(Boolean);
+  if (!items.length) return null;
+
+  // Query the app_registry to verify the store names
+  const storeNames = appRegistry.getStoreNames();
+  for (const item of items) {
+    if (!storeNames.includes(item.name)) {
+      return null; // Store name does not exist in the app_registry
+    }
+  }
+
+  return { route, category: e.category, items, confidence, request: { kind: 'request', category: e.category, items } };
+}
 
 // ---------------------------------------------------------------------
 // Normalization — quantities and dates are entities, not identity:
