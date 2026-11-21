@@ -289,65 +289,14 @@ function makeDictionary(pool, { parseItems }) {
           console.log(`[pa-dictionary] learned: "${pattern}" -> ${match.route} (confidence ${match.confidence})`);
           return r.rows[0];
         }
-        const again = await q(
-          'SELECT * FROM pa.dictionary_entry WHERE pattern = $1', [pattern]);
-        return again.rows[0] || null;
+        return null;
       } catch (e) {
         console.error('[pa-dictionary] learn failed:', e.message);
         return null;
       }
-    },
-
-    // A clean hit: the user confirmed the routed request and it was
-    // placed. Promotes probationary -> active at PROMOTE_AFTER_HITS.
-    async dictRecordHit(id) {
-      if (!id) return;
-      try {
-        await q(
-          `UPDATE pa.dictionary_entry
-           SET hit_count = hit_count + 1, last_used_at = now(), updated_at = now(),
-               status = CASE WHEN status = 'probationary' AND hit_count + 1 >= $2
-                             THEN 'active' ELSE status END
-           WHERE id = $1`,
-          [id, PROMOTE_AFTER_HITS]);
-      } catch (e) {
-        console.error('[pa-dictionary] recordHit failed:', e.message);
-      }
-    },
-
-    // A misfire: the user cancelled at the confirmation the entry's
-    // route produced. Learned entries drop to pending_review for the
-    // owner and must re-earn promotion; manual entries never demote.
-    async dictDemote(id) {
-      if (!id) return;
-      try {
-        await q(
-          `UPDATE pa.dictionary_entry
-           SET status = 'pending_review', hit_count = 0, updated_at = now()
-           WHERE id = $1 AND source <> 'manual'`,
-          [id]);
-      } catch (e) {
-        console.error('[pa-dictionary] demote failed:', e.message);
-      }
-    },
-
-    // No route matched at all — save for owner review. This is the
-    // ONLY output of the "new capability" path: nothing is coded,
-    // registered or executed from a proposal.
-    async dictPropose(text) {
-      const pattern = normalizePattern(text);
-      if (!pattern) return;
-      try {
-        await q(
-          'INSERT INTO pa.dictionary_proposal (raw_text, pattern) VALUES ($1,$2)',
-          [String(text || '').slice(0, 500), pattern]);
-      } catch (e) {
-        console.error('[pa-dictionary] propose failed:', e.message);
-      }
-    },
+    }
   };
 }
-
 module.exports = {
   makeDictionary,
   normalizePattern,
