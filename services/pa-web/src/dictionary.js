@@ -242,6 +242,8 @@ async function matchWithHelper(text) {
 // Postgres store — plugged into the router's store by registerRouter.
 // ---------------------------------------------------------------------
 
+const appRegistry = require('./appRegistry');
+
 function makeDictionary(pool, { parseItems }) {
   const q = (sql, params) => pool.query(sql, params);
 
@@ -347,7 +349,6 @@ function makeDictionary(pool, { parseItems }) {
     },
   };
 }
-
 module.exports = {
   makeDictionary,
   normalizePattern,
