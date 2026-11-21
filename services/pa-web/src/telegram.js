@@ -190,7 +190,94 @@ module.exports = function registerTelegram(pool, auth, paRouter) {
       '/link — re-link your account\n' +
       '/unlink — disconnect this Telegram account\n' +
       (isManager ? '/dashboard — visit counts\n/allvisits — all staff visits\n' : '') +
+      '/report_issue — report a bug or problem\n' +
       '\nOr just ask me anything about your visits!');
+  }
+
+  // in-memory state for /report_issue multi-step flow
+  const riState = new Map();
+
+  async function sendWithButtons(chatId, text, buttons) {
+    return tgCall('sendMessage', { chat_id: chatId, text, parse_mode: 'HTML', reply_markup: { inline_keyboard: buttons } });
+  }
+
+  async function editWithButtons(chatId, msgId, text, buttons) {
+    const body = { chat_id: chatId, message_id: msgId, text, parse_mode: 'HTML' };
+    if (buttons) body.reply_markup = { inline_keyboard: buttons };
+    return tgCall('editMessageText', body);
+  }
+
+  async function handleReportIssue(chatId, text, from) {
+    const rest = text.replace(/^\/report_issue\b/i, '').trim();
+    const parts = rest.split('--').map(s => s.trim());
+    const title = parts[0];
+    const description = parts[1] || '';
+    const submittedBy = from?.username || from?.first_name || String(chatId);
+
+    if (!title) {
+      await sendMessage(chatId,
+        '📝 <b>Report an Issue</b>\n\n' +
+        'Usage:\n<code>/report_issue &lt;title&gt;</code>\nor with details:\n' +
+        '<code>/report_issue &lt;title&gt; -- &lt;description&gt;</code>\n\n' +
+        'Example:\n<code>/report_issue Not available message -- Got "not available" for tomatoes when stock shows available</code>');
+      return;
+    }
+
+    riState.set(chatId, { title, description, submittedBy });
+    await sendWithButtons(chatId,
+      `📋 <b>Report Issue</b>\n<b>Title:</b> ${title}${description ? `\n<b>Details:</b> ${description}` : ''}\n\nSelect severity:`,
+      [[
+        { text: '🔴 Critical', callback_data: 'ri_sev:critical' },
+        { text: '🟠 High',     callback_data: 'ri_sev:high'     },
+        { text: '🟡 Medium',   callback_data: 'ri_sev:medium'   },
+        { text: '🟢 Low',      callback_data: 'ri_sev:low'      },
+      ]]
+    );
+  }
+
+  async function handleRiCallback(cq) {
+    const { id: cqId, data, message, from } = cq;
+    const chatId = message?.chat?.id;
+    const msgId  = message?.message_id;
+    const parts  = data.split(':');
+    const action = parts[0];
+
+    await tgCall('answerCallbackQuery', { callback_query_id: cqId });
+
+    if (action === 'ri_sev') {
+      const severity = parts[1];
+      const state = riState.get(chatId);
+      if (!state) return;
+      riState.set(chatId, { ...state, severity });
+      await editWithButtons(chatId, msgId,
+        `📋 <b>Report Issue</b>\n<b>Title:</b> ${state.title}\n<b>Severity:</b> ${severity}\n\nWhich app is affected?`,
+        [[
+          { text: 'PA',         callback_data: 'ri_area:pa'         },
+          { text: 'Textiles',   callback_data: 'ri_area:textiles'   },
+          { text: 'Vegistore',  callback_data: 'ri_area:vegistore'  },
+          { text: 'HelpLawyer', callback_data: 'ri_area:helplawyer' },
+        ]]
+      );
+    } else if (action === 'ri_area') {
+      const area  = parts[1];
+      const state = riState.get(chatId);
+      if (!state) return;
+      riState.delete(chatId);
+      try {
+        const r = await q(
+          `INSERT INTO survey.issues (title, description, severity, area, status, submitted_by)
+           VALUES ($1, $2, $3, $4, 'open', $5) RETURNING id`,
+          [state.title, state.description || state.title, state.severity || 'medium', area, state.submittedBy]
+        );
+        const ref = `SV-${r.rows[0].id}`;
+        await editWithButtons(chatId, msgId,
+          `✅ <b>Issue Reported: ${ref}</b>\n\n<b>${state.title}</b>\nSeverity: ${state.severity} | Area: ${area}\n\nOur team has been notified and will review shortly.`,
+          null
+        );
+      } catch (e) {
+        await editWithButtons(chatId, msgId, `❌ Failed to submit: ${e.message}`, null);
+      }
+    }
   }
 
   async function handleLink(chatId) {
@@ -290,12 +377,27 @@ module.exports = function registerTelegram(pool, auth, paRouter) {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end('{}'); // always ACK immediately
 
+    // Handle inline button callbacks (ri_sev / ri_area)
+    if (body?.callback_query) {
+      const data = body.callback_query.data || '';
+      if (data.startsWith('ri_sev:') || data.startsWith('ri_area:')) {
+        await handleRiCallback(body.callback_query).catch(() => {});
+      }
+      return;
+    }
+
     const msg = body?.message;
     if (!msg) return;
 
     const chatId = msg.chat?.id;
     const text   = (msg.text || '').trim();
     if (!chatId || !text) return;
+
+    // /report_issue — available to all users (linked or not)
+    if (/^\/report_issue/i.test(text)) {
+      await handleReportIssue(chatId, text, msg.from).catch(() => {});
+      return;
+    }
 
     try {
       const cmd = text.split(' ')[0].toLowerCase().replace(/@.*$/, '');
