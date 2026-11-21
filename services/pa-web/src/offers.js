@@ -51,7 +51,7 @@ const longDate = iso => { if (!iso) return ''; const [y, m, d] = iso.split('-').
 const money = n => 'Rs. ' + Number(n).toLocaleString('en-IN', { maximumFractionDigits: 2 });
 const refNo = o => `OL/${String(o.offer_date).slice(0, 4)}/${String(o.id).padStart(4, '0')}`;
 
-const ORG_FIELDS = { company_name: 160, company_cin: 30, company_address: 400, company_phone: 40, company_email: 120, company_website: 120, signatory_name: 120, signatory_title: 120 };
+const ORG_FIELDS = { company_name: 160, company_cin: 30, company_address: 400, company_phone: 40, company_email: 120, company_website: 120, signatory_name: 120, signatory_title: 120, store_name: 120 };
 
 function publicOffer(r) {
   const o = {
