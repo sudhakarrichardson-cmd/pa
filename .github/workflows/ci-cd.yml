@@ -38,9 +38,49 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.OWNER }}/pa-web:${{ github.sha }}
             ${{ env.REGISTRY }}/${{ env.OWNER }}/pa-web:latest
 
-  deploy:
-    name: Deploy to production
+  deploy-staging:
+    name: Deploy to staging
     needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Set up SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.PROD_SSH_KEY }}
+
+      - name: Add staging host to known_hosts
+        run: ssh-keyscan -H ${{ secrets.STAGING_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Deploy pa-web to staging
+        run: |
+          ssh -o StrictHostKeyChecking=no root@${{ secrets.STAGING_HOST }} \
+            "pa-web ${{ github.sha }}"
+
+  test-staging:
+    name: Sanity check staging
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Set up SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.PROD_SSH_KEY }}
+
+      - name: Wait for containers to be healthy
+        run: sleep 10
+
+      - name: Health check — pa-web
+        run: |
+          ssh -o StrictHostKeyChecking=no root@${{ secrets.STAGING_HOST }} \
+            "curl -sf http://localhost:8095/health -o /dev/null && echo 'pa-web OK'"
+
+  deploy-prod:
+    name: Deploy to production
+    needs: test-staging
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
 
@@ -53,7 +93,7 @@ jobs:
       - name: Add prod host to known_hosts
         run: ssh-keyscan -H ${{ secrets.PROD_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
 
-      - name: Deploy pa-web
+      - name: Deploy pa-web to prod
         run: |
           ssh -o StrictHostKeyChecking=no root@${{ secrets.PROD_HOST }} \
             "pa-web ${{ github.sha }}"
