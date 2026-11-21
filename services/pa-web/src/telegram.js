@@ -223,9 +223,9 @@ module.exports = function registerTelegram(pool, auth, paRouter) {
       return;
     }
 
-    riState.set(chatId, { title, description, submittedBy });
+    riState.set(chatId, { title, desc: description, by: submittedBy });
     await sendWithButtons(chatId,
-      `📋 <b>Report Issue</b>\n<b>Title:</b> ${title}${description ? `\n<b>Details:</b> ${description}` : ''}\n\nSelect severity:`,
+      `📋 Report Issue\nTitle: ${title}${description ? `\nDetails: ${description}` : ''}\n\nSelect severity:`,
       [[
         { text: '🔴 Critical', callback_data: 'ri_sev:critical' },
         { text: '🟠 High',     callback_data: 'ri_sev:high'     },
@@ -235,22 +235,38 @@ module.exports = function registerTelegram(pool, auth, paRouter) {
     );
   }
 
+  // Parse title/severity from message text so state survives container restarts
+  function parseRiMsg(text) {
+    const r = {};
+    for (const line of (text || '').split('\n')) {
+      if (line.startsWith('Title: '))    r.title    = line.slice(7).trim();
+      if (line.startsWith('Details: '))  r.desc     = line.slice(9).trim();
+      if (line.startsWith('Severity: ')) r.severity = line.slice(10).trim();
+    }
+    return r;
+  }
+
   async function handleRiCallback(cq) {
     const { id: cqId, data, message, from } = cq;
-    const chatId = message?.chat?.id;
-    const msgId  = message?.message_id;
-    const parts  = data.split(':');
-    const action = parts[0];
+    const chatId  = message?.chat?.id;
+    const msgId   = message?.message_id;
+    const msgText = message?.text || '';
+    const parts   = data.split(':');
+    const action  = parts[0];
 
     await tgCall('answerCallbackQuery', { callback_query_id: cqId });
 
     if (action === 'ri_sev') {
       const severity = parts[1];
-      const state = riState.get(chatId);
-      if (!state) return;
-      riState.set(chatId, { ...state, severity });
+      // Get title from riState (fresh flow) or from message text (after restart)
+      const mem   = riState.get(chatId) || {};
+      const parsed = parseRiMsg(msgText);
+      const title  = mem.title || parsed.title || '';
+      const desc   = mem.desc  || parsed.desc  || '';
+      if (!title) { await tgCall('sendMessage', { chat_id: chatId, text: 'Session expired. Please send /report_issue again.' }); return; }
+      riState.set(chatId, { title, desc, severity, by: from?.username || from?.first_name || String(chatId) });
       await editWithButtons(chatId, msgId,
-        `📋 <b>Report Issue</b>\n<b>Title:</b> ${state.title}\n<b>Severity:</b> ${severity}\n\nWhich app is affected?`,
+        `📋 Report Issue\nTitle: ${title}${desc ? `\nDetails: ${desc}` : ''}\nSeverity: ${severity}\n\nWhich app is affected?`,
         [[
           { text: 'PA',         callback_data: 'ri_area:pa'         },
           { text: 'Textiles',   callback_data: 'ri_area:textiles'   },
@@ -259,19 +275,24 @@ module.exports = function registerTelegram(pool, auth, paRouter) {
         ]]
       );
     } else if (action === 'ri_area') {
-      const area  = parts[1];
-      const state = riState.get(chatId);
-      if (!state) return;
+      const area   = parts[1];
+      const mem    = riState.get(chatId) || {};
+      const parsed = parseRiMsg(msgText);
+      const title  = mem.title    || parsed.title    || '';
+      const desc   = mem.desc     || parsed.desc     || title;
+      const sev    = mem.severity || parsed.severity || 'medium';
+      const by     = mem.by || from?.username || from?.first_name || String(chatId);
       riState.delete(chatId);
+      if (!title) { await editWithButtons(chatId, msgId, '❌ Session expired. Please send /report_issue again.', null); return; }
       try {
         const r = await q(
           `INSERT INTO survey.issues (title, description, severity, area, status, submitted_by)
            VALUES ($1, $2, $3, $4, 'open', $5) RETURNING id`,
-          [state.title, state.description || state.title, state.severity || 'medium', area, state.submittedBy]
+          [title, desc, sev, area, by]
         );
         const ref = `SV-${r.rows[0].id}`;
         await editWithButtons(chatId, msgId,
-          `✅ <b>Issue Reported: ${ref}</b>\n\n<b>${state.title}</b>\nSeverity: ${state.severity} | Area: ${area}\n\nOur team has been notified and will review shortly.`,
+          `✅ Issue Reported: ${ref}\n\n${title}\nSeverity: ${sev} | Area: ${area}\n\nOur team has been notified and will review shortly.`,
           null
         );
       } catch (e) {
