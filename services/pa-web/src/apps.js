@@ -77,101 +77,21 @@ function createApps(deps) {
   function paUser(user) {
     return {
       name: user.name, phone: user.phone || null,
-      address: user.address, pincode: user.pincode,
-      // Stable PA identity: apps key their PA customers on it when no phone
-      // is known (VegiBot stores it as phone "pa:pa-user-<id>").
-      user_ref: `pa-user-${user.id}`,
+      address: user.address || null,
+      email: user.email || null,
+      role: user.role || null,
+      permissions: user.permissions || []
     };
-  }
-
-  // Read-only: creates no order, no reservation, no charge in the app.
-  async function checkAvailability(app, user, items) {
-    const out = await callApp(app, {
-      request: 'check_availability', pa_user: paUser(user), items,
-    });
-    return out && Array.isArray(out.items) ? out : null;
-  }
-
-  // Only ever called after the user confirmed the quote to PA.
-  // paRequestId is the idempotency key: the app must not create a
-  // second order if it sees the same key again.
-  //
-  // invoice_callback_url: after the owner approves and sets the final
-  // price, the app POSTs { user_ref, invoice_no, amount, store_name }
-  // (and optionally pdf_base64/pdf_filename) to this URL with the same
-  // x-pa-secret header, and PA delivers it to the customer via Telegram.
-  //
-  // allow_price_adjustment: true tells the app that the owner may edit
-  // the quoted rates before approving (actual stock prices may differ).
-  async function placeOrder(app, user, items, paRequestId) {
-    const baseUrl = (env.PA_BASE_URL || '').replace(/\/$/, '');
-    const payload = {
-      request: 'place_order', pa_request_id: paRequestId,
-      pa_user: paUser(user), items,
-      allow_price_adjustment: true,
-    };
-    if (baseUrl) {
-      payload.invoice_callback_url = `${baseUrl}/api/pa/relay/invoice`;
-    }
-    const out = await callApp(app, payload);
-    return out && out.app_order_id ? out : null;
-  }
-
-  async function orderStatus(app, appOrderId) {
-    const out = await callApp(app, {
-      request: 'order_status', app_order_id: appOrderId,
-    });
-    return out && out.status ? out.status : null;
-  }
-
-  // Admin: create or update a registration (endpoint/status stay under
-  // PlotFarms control; a fresh registration starts 'pending').
-  async function registerApp(e) {
-    const r = await query(
-      `INSERT INTO pa.app_registry
-         (app_id, app_name, app_type, categories, service_pincodes,
-          endpoint_url, secret_env, capabilities, mode, status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'pending')
-       ON CONFLICT (app_id) DO UPDATE SET
-         app_name = EXCLUDED.app_name, app_type = EXCLUDED.app_type,
-         categories = EXCLUDED.categories,
-         service_pincodes = EXCLUDED.service_pincodes,
-         endpoint_url = EXCLUDED.endpoint_url,
-         secret_env = EXCLUDED.secret_env,
-         capabilities = EXCLUDED.capabilities, mode = EXCLUDED.mode,
-         updated_at = now()
-       RETURNING app_id, status`,
-      [e.app_id, e.app_name, e.app_type, e.categories || [],
-       e.service_pincodes || [], e.endpoint_url || '', e.secret_env || '',
-       e.capabilities || ['check_availability', 'place_order', 'order_status'],
-       e.mode || 'mediated']);
-    return r.rows[0];
-  }
-
-  async function setStatus(appId, status) {
-    const r = await query(
-      `UPDATE pa.app_registry SET status = $2, updated_at = now()
-        WHERE app_id = $1 RETURNING app_id, status`, [appId, status]);
-    return r.rows[0] || null;
-  }
-
-  // Activation check: one read-only availability call. Only a correct
-  // basic-interface answer flips the registration to 'active'.
-  async function testApp(app) {
-    const probe = { name: 'test', qty: 1, unit: 'piece' };
-    const out = await checkAvailability(app,
-      { name: 'PA test', phone: null, address: 'test', pincode: '000000' },
-      [probe]);
-    return out;
   }
 
   return {
-    listApps, getApp, findApps, callApp,
-    checkAvailability, placeOrder, orderStatus,
-    registerApp, setStatus, testApp,
+    listApps,
+    getApp,
+    findApps,
+    callApp,
+    paUser
   };
 }
-
 module.exports = function registerApps(pool) {
   return createApps({ query: (sql, params) => pool.query(sql, params) });
 };
